@@ -39,8 +39,10 @@ type Domain d x = (KnownNat d, d ~ Dim x)
 class    KnownNat (Dim x) ⇒ Ob x
 instance KnownNat (Dim x) ⇒ Ob x
 
+
 -- | Morphisms between domains
 data Mor x y where
+                                     -- v TODO: replace with LA.R n → (LA.R m, LA.L m n)
     Mor ∷ (Domain n x, Domain m y) ⇒ (LA.R n → LA.R m) → (LA.R n → LA.L m n) → Mor x y
 
 instance Cat Ob Mor where
@@ -145,15 +147,23 @@ class Invol x where
     invol ∷ Mor x x
 
 instance KnownNat n ⇒ Add (ℝ  n) where
-    add = Mor (uncurry (F.+) . LA.split) (\_ → LA.eye LA.||| LA.eye)
+    add = Mor (uncurry (F.+) . LA.split) 
+              (\_ → LA.eye LA.||| LA.eye)
 
 instance KnownNat n ⇒ Add (ℝp n) where
+    add = Mor (uncurry (\x x' → F.log (F.exp x F.+ F.exp x')) . LA.split)
+              (uncurry (\x x' → let (e,e') = (F.exp x, F.exp x') 
+                                    d      = e F.+ e'
+                                 in LA.diag (e F./ d) LA.||| LA.diag (e' F./ d)
+                       ) . LA.split)
 
 instance KnownNat n ⇒ Mul (ℝ  n) where
-    mul = Mor (uncurry (F.*) . LA.split) (uncurry (\x x' → LA.diag x LA.||| LA.diag x') . LA.split)
+    mul = Mor (uncurry (F.*) . LA.split) 
+              (uncurry (\x x' → LA.diag x LA.||| LA.diag x') . LA.split)
 
 instance KnownNat n ⇒ Mul (ℝp n) where
-    mul = Mor (uncurry (F.+) . LA.split) (\_ → LA.eye LA.||| LA.eye)
+    mul = Mor (uncurry (F.+) . LA.split) 
+              (\_ → LA.eye LA.||| LA.eye)
 
 instance KnownNat n ⇒ Mul (I  n) where
 
