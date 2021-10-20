@@ -8,12 +8,14 @@ module VI.Domains ( -- * Cartesian category of domains
                     Dim, Domain
                   , Ob, Mor
                     -- * Basic domains
-                  , ℝ, ℝp, I, Δ, M, Σ, Σp
+                  , ℝ, ℝp, I, {- Δ, -} M, Σ, Σp
                     -- * Basic operations
                   , type(⊂)(..), type(≌)(..), Add(..), Mul(..), ScaleP(..), Scale(..), Mix(..), Invol(..)
                   ) where
 
 import VI.Categories
+
+import Prelude                  (uncurry)
 
 import GHC.TypeLits
 import GHC.TypeLits.Extra
@@ -42,13 +44,13 @@ data Mor x y where
     Mor ∷ (Domain n x, Domain m y) ⇒ (LA.R n → LA.R m) → (LA.R n → LA.L m n) → Mor x y
 
 instance Cat Ob Mor where
-    id = Mor id (\x → LA.diag 1)
+    id = Mor id (\x → LA.eye)
     Mor f df . Mor g dg = Mor (f . g) ((LA.<>) <$> (df . g) <*> dg)
 
 instance Cart Ob Mor where
-    pr1 = Mor (pr1 . LA.split) (\x → LA.diag 1 LA.||| 0) 
+    pr1 = Mor (pr1 . LA.split) (\x → LA.eye LA.||| 0) 
     pr2 ∷ ∀ x y. (Ob x, Ob y, Ob (x,y)) ⇒ Mor (x,y) y
-    pr2 = Mor (pr2 . LA.split @(Dim x)) (\x → 0 LA.||| LA.diag 1) 
+    pr2 = Mor (pr2 . LA.split @(Dim x)) (\x → 0 LA.||| LA.eye) 
     Mor f df × Mor g dg = Mor ((LA.#) <$> f <*> g) ((LA.===) <$> df <*> dg)
 
 -- | Unconstrained real vectors, coordinate: @id@
@@ -57,8 +59,12 @@ data ℝ  (n ∷ Nat)
 data ℝp (n ∷ Nat)
 -- | [0,1]^n, coordinate: @log x/(1-x)@
 data I  (n ∷ Nat)
--- | standard simplex in @ℝ (n+1)@ 
+
+{-
+-- | standard simplex in @ℝ (n+1)@ (TODO)
 data Δ  (n ∷ Nat)
+-}
+
 -- | Unconstrained real matrices
 data M  (m ∷ Nat) (n ∷ Nat)
 -- | Symmetric real matrices
@@ -69,7 +75,7 @@ data Σp (n ∷ Nat)
 type instance Dim (ℝ  n  ) = n
 type instance Dim (ℝp n  ) = n
 type instance Dim (I  n  ) = n
-type instance Dim (Δ  n  ) = n
+-- type instance Dim (Δ  n  ) = n
 type instance Dim (M  m n) = m * n
 type instance Dim (Σ  n  ) = (n * (1 + n)) `Div` 2
 type instance Dim (Σp n  ) = (n * (1 + n)) `Div` 2
@@ -91,18 +97,24 @@ instance KnownNat n ⇒ I n ⊂ ℝp n where
     emb = Mor (F.log . (\x → x F./ (1 F.+ x)) . F.exp)
               (LA.diag . (1 F.-) . (\x → x F./ (1 F.+ x)) . F.exp)
 
-instance (KnownNat n, KnownNat n', n' ~ n + 1) ⇒ Δ n ⊂ I n' where
+-- instance (KnownNat n, KnownNat n', n' ~ n + 1) ⇒ Δ n ⊂ I n' where
 
 instance KnownNat n ⇒ Σ n ⊂ M n n where
 
 instance KnownNat n ⇒ Σp n ⊂ Σ n where
 
 -- | Canonical isomorphism
-class x ≌ y where
+class (Ob x, Ob y, Dim x ~ Dim y) ⇒ x ≌ y where
     iso ∷ Mor x y
     osi ∷ Mor y x
+    iso = Mor id (\_ → LA.eye)
+    osi = Mor id (\_ → LA.eye)
 
-instance Δ 1 ≌ I 1 where
+instance (KnownNat n, KnownNat m, KnownNat l, l ~ n + m) ⇒ (ℝ n, ℝ m)   ≌ ℝ  l
+instance (KnownNat n, KnownNat m, KnownNat l, l ~ n + m) ⇒ (ℝp n, ℝp m) ≌ ℝp l
+instance (KnownNat n, KnownNat m, KnownNat l, l ~ n + m) ⇒ (I n, I m)   ≌ I  l
+
+-- instance Δ 1 ≌ I 1 where
 
 {-
 simplexProjection ∷ Mor (ℝp n) (Δ n) 
@@ -133,16 +145,22 @@ class Invol x where
     invol ∷ Mor x x
 
 instance KnownNat n ⇒ Add (ℝ  n) where
+    add = Mor (uncurry (F.+) . LA.split) (\_ → LA.eye LA.||| LA.eye)
+
 instance KnownNat n ⇒ Add (ℝp n) where
 
 instance KnownNat n ⇒ Mul (ℝ  n) where
+    mul = Mor (uncurry (F.*) . LA.split) (uncurry (\x x' → LA.diag x LA.||| LA.diag x') . LA.split)
+
 instance KnownNat n ⇒ Mul (ℝp n) where
+    mul = Mor (uncurry (F.+) . LA.split) (\_ → LA.eye LA.||| LA.eye)
+
 instance KnownNat n ⇒ Mul (I  n) where
 
 instance KnownNat n ⇒ Mix (ℝ  n) where
 instance KnownNat n ⇒ Mix (ℝp n) where
 instance KnownNat n ⇒ Mix (I  n) where
-instance KnownNat n ⇒ Mix (Δ  n) where
+-- instance KnownNat n ⇒ Mix (Δ  n) where
 
 instance KnownNat n ⇒ Invol (ℝ  n) where
 instance KnownNat n ⇒ Invol (ℝp n) where
