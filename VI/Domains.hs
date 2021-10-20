@@ -4,7 +4,13 @@
 {-# OPTIONS_GHC -fplugin GHC.TypeLits.KnownNat.Solver #-}
 {-# OPTIONS_GHC -fplugin GHC.TypeLits.Normalise #-}
 
-module VI.Domains (
+module VI.Domains ( -- * Cartesian category of domains
+                    Dim, Domain
+                  , Ob, Mor
+                    -- * Basic domains
+                  , ℝ, ℝp, I, Δ, M, Σ, Σp
+                    -- * Basic operations
+                  , type(⊂)(..), type(≌)(..), Add(..), Mul(..), ScaleP(..), Scale(..), Mix(..), Invol(..)
                   ) where
 
 import VI.Categories
