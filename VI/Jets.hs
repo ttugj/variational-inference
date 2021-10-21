@@ -18,6 +18,15 @@ import GHC.Real
 import GHC.Num   
 
 -- | 1-jet of a map R^n -> R^m
+--
+-- Note the associated instances.
+--
+-- Example:
+--
+-- @
+--   test ∷ Jet 2 2
+--   test = fromPoints2' $ \\x y → (exp $ x * y) ⊙ ( sin (x * pi) / exp y ) 
+-- @  
 data Jet (n ∷ Nat) (m ∷ Nat) where
     Jet ∷ (KnownNat n, KnownNat m) ⇒ (LA.R n → (LA.R m, LA.L m n)) → Jet n m
 
@@ -73,5 +82,6 @@ instance (KnownNat n, KnownNat m) ⇒ Floating (Jet n m) where
     asinh          = lift1 @Floating $ \x → (asinh x, recip $ cosh x)
     acosh          = lift1 @Floating $ \x → (asinh x, recip $ sinh x)
     atanh          = lift1 @Floating $ \x → let y = cosh x in (atanh x, y * y)
+
 
 

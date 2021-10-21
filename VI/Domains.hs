@@ -171,12 +171,12 @@ chol = Mor cholU
        
 
 -- |  
-mTm ∷ KnownNat n ⇒ Mor (M n n) (Σ n)
-mTm = Mor $ \x → _ -- TODO
+--mTm ∷ KnownNat n ⇒ Mor (M n n) (Σ n)
+--mTm = Mor $ \x → _ -- TODO
 
 instance KnownNat n ⇒ Σp n ⊂ Σ n where
     -- we factor Σp n ⊂ Σ n through the space of upper-triangular matrices
-    emb = mTm . emb . chol
+ --   emb = mTm . emb . chol
 
 -- instance Δ 1 ≌ I 1 where
 
