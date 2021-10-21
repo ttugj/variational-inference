@@ -29,6 +29,7 @@ module VI.Domains ( -- * Cartesian category of domains
 --
                     Dim, Domain
                   , Ob, Mor
+                  , fromLinear, fromAffine
                     -- * Basic domains
                   , ℝ, ℝp, I, {- Δ, -} M, Σ, Σp
                     -- * Basic operations
@@ -36,6 +37,7 @@ module VI.Domains ( -- * Cartesian category of domains
                   ) where
 
 import VI.Categories
+import VI.Util
 
 import Prelude                  (uncurry, ($))
 
@@ -45,6 +47,7 @@ import Data.Functor
 import Control.Applicative
 
 import qualified Numeric.LinearAlgebra.Static as LA
+import qualified Numeric.LinearAlgebra        as LA'
 import qualified GHC.Float as F
 import qualified GHC.Real  as F
 import qualified GHC.Num   as F
@@ -82,6 +85,15 @@ instance Cart Ob Mor where
                                    (z, dψ) = ψ x
                                 in (y LA.# z, dφ LA.=== dψ)
 
+-- | A morphism represented as a linear map in canonical coordinates
+fromLinear ∷ (Domain n x, Domain m y) ⇒ LA.L m n → Mor x y
+fromLinear a = Mor $ \x → (a LA.#> x, a)
+
+-- | A morphism represented as an affine map in canonical coordinates
+fromAffine ∷ (Domain n x, Domain m y) ⇒ LA.R m → LA.L m n → Mor x y
+fromAffine y a = Mor $ \x → (y F.+ a LA.#> x, a)
+
+
 -- | Unconstrained real vectors, coordinate: @id@
 data ℝ  (n ∷ Nat)
 -- | Positive orthant in @ℝ n@, coordinate: @log x@
@@ -100,6 +112,8 @@ data M  (m ∷ Nat) (n ∷ Nat)
 data Σ  (n ∷ Nat)
 -- | Positive real matrices
 data Σp (n ∷ Nat)
+-- | Upper-triangular real matrices
+data U  (n ∷ Nat)
 
 type instance Dim (ℝ  n  ) = n
 type instance Dim (ℝp n  ) = n
@@ -108,6 +122,7 @@ type instance Dim (I  n  ) = n
 type instance Dim (M  m n) = m * n
 type instance Dim (Σ  n  ) = (n * (1 + n)) `Div` 2
 type instance Dim (Σp n  ) = (n * (1 + n)) `Div` 2
+type instance Dim (U  n  ) = (n * (1 + n)) `Div` 2
 
 -- | Canonical isomorphism
 class (Ob x, Ob y, Dim x ~ Dim y) ⇒ x ≌ y where
@@ -145,15 +160,30 @@ instance KnownNat n ⇒ I n ⊂ ℝp n where
 -- instance (KnownNat n, KnownNat n', n' ~ n + 1) ⇒ Δ n ⊂ I n' where
 
 instance KnownNat n ⇒ Σ n ⊂ M n n where
+    emb = fromLinear (embΣM @n)
+
+instance KnownNat n ⇒ U n ⊂ M n n where
+    emb = fromLinear (embUM @n)    
+
+-- | Upper-triangular Cholesky factor
+chol ∷ KnownNat n ⇒ Mor (Σp n) (U n)
+chol = Mor cholU 
+       
+
+-- |  
+mTm ∷ KnownNat n ⇒ Mor (M n n) (Σ n)
+mTm = Mor $ \x → _ -- TODO
 
 instance KnownNat n ⇒ Σp n ⊂ Σ n where
-
+    -- we factor Σp n ⊂ Σ n through the space of upper-triangular matrices
+    emb = mTm . emb . chol
 
 -- instance Δ 1 ≌ I 1 where
 
 {-
 simplexProjection ∷ Mor (ℝp n) (Δ n) 
 -}
+
 
 -- | Additive domains 
 class Add x where
@@ -219,6 +249,7 @@ instance KnownNat n ⇒ Invol (ℝp n)
 instance KnownNat n ⇒ Invol (I  n) 
 
 {-
+-- don't need this
 instance KnownNat n ⇒ ScaleP (ℝ  n) where
     scalep = Mor $ \x → let (c, x') = LA.headTail x
                             e       = LA.konst $ F.exp c
@@ -246,6 +277,6 @@ instance (KnownNat m, KnownNat n) ⇒ Scale (M m n)
 instance KnownNat n ⇒ Scale (Σ n)
 instance KnownNat n ⇒ ScaleP (Σp n)
 
-mTm ∷ k >= n ⇒ M k n → Σp n
-mmT ∷ k >= n ⇒ M n k → Σp n
+mTm' ∷ k >= n ⇒ M k n → Σp n
+mmT' ∷ k >= n ⇒ M n k → Σp n
 -}
