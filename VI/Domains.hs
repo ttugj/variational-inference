@@ -15,7 +15,7 @@ module VI.Domains ( -- * Cartesian category of domains
 
 import VI.Categories
 
-import Prelude                  (uncurry)
+import Prelude                  (uncurry, ($))
 
 import GHC.TypeLits
 import GHC.TypeLits.Extra
@@ -42,18 +42,22 @@ instance KnownNat (Dim x) ⇒ Ob x
 
 -- | Morphisms between domains
 data Mor x y where
-                                     -- v TODO: replace with LA.R n → (LA.R m, LA.L m n)
-    Mor ∷ (Domain n x, Domain m y) ⇒ (LA.R n → LA.R m) → (LA.R n → LA.L m n) → Mor x y
+    Mor ∷ (Domain n x, Domain m y) ⇒ (LA.R n → (LA.R m, LA.L m n)) → Mor x y
 
 instance Cat Ob Mor where
-    id = Mor id (\x → LA.eye)
-    Mor f df . Mor g dg = Mor (f . g) ((LA.<>) <$> (df . g) <*> dg)
+    id = Mor $ \x → (x, LA.eye)
+    Mor φ . Mor ψ = Mor $ \x → let (y, dψ) = ψ x
+                                   (z, dφ) = φ y
+                                in (z, dφ LA.<> dψ)
 
 instance Cart Ob Mor where
-    pr1 = Mor (pr1 . LA.split) (\x → LA.eye LA.||| 0) 
+    pr1 ∷ ∀ x y. (Ob x, Ob y, Ob (x,y)) ⇒ Mor (x,y) x
+    pr1 = Mor $ \x → (pr1 $ LA.split @(Dim x) x, LA.eye LA.||| 0)
     pr2 ∷ ∀ x y. (Ob x, Ob y, Ob (x,y)) ⇒ Mor (x,y) y
-    pr2 = Mor (pr2 . LA.split @(Dim x)) (\x → 0 LA.||| LA.eye) 
-    Mor f df × Mor g dg = Mor ((LA.#) <$> f <*> g) ((LA.===) <$> df <*> dg)
+    pr2 = Mor $ \x → (pr2 $ LA.split @(Dim x) x, 0 LA.||| LA.eye)
+    Mor φ × Mor ψ = Mor $ \x → let (y, dφ) = φ x
+                                   (z, dψ) = ψ x
+                                in (y LA.# z, dφ LA.=== dψ)
 
 -- | Unconstrained real vectors, coordinate: @id@
 data ℝ  (n ∷ Nat)
@@ -93,11 +97,12 @@ instance Ob x ⇒ x ⊂ x where
     emb = id
 
 instance KnownNat n ⇒ ℝp n ⊂ ℝ n where
-    emb = Mor F.exp (LA.diag . F.exp)
+    emb = Mor $ \x → let y = F.exp x in (y, LA.diag y)
 
 instance KnownNat n ⇒ I n ⊂ ℝp n where
-    emb = Mor (F.log . (\x → x F./ (1 F.+ x)) . F.exp)
-              (LA.diag . (1 F.-) . (\x → x F./ (1 F.+ x)) . F.exp)
+    emb = Mor $ \x → let y = F.exp x
+                         z = y F./ (1 F.+ y)
+                      in (F.log z, LA.diag $ 1 F.- z)
 
 -- instance (KnownNat n, KnownNat n', n' ~ n + 1) ⇒ Δ n ⊂ I n' where
 
@@ -109,8 +114,8 @@ instance KnownNat n ⇒ Σp n ⊂ Σ n where
 class (Ob x, Ob y, Dim x ~ Dim y) ⇒ x ≌ y where
     iso ∷ Mor x y
     osi ∷ Mor y x
-    iso = Mor id (\_ → LA.eye)
-    osi = Mor id (\_ → LA.eye)
+    iso = Mor $ \x → (x, LA.eye)
+    osi = Mor $ \x → (x, LA.eye)
 
 instance (KnownNat n, KnownNat m, KnownNat l, l ~ n + m) ⇒ (ℝ n, ℝ m)   ≌ ℝ  l
 instance (KnownNat n, KnownNat m, KnownNat l, l ~ n + m) ⇒ (ℝp n, ℝp m) ≌ ℝp l
@@ -147,23 +152,18 @@ class Invol x where
     invol ∷ Mor x x
 
 instance KnownNat n ⇒ Add (ℝ  n) where
-    add = Mor (uncurry (F.+) . LA.split) 
-              (\_ → LA.eye LA.||| LA.eye)
+    add = Mor $ \x → (uncurry (F.+) $ LA.split x, LA.eye LA.||| LA.eye)
 
 instance KnownNat n ⇒ Add (ℝp n) where
-    add = Mor (uncurry (\x x' → F.log (F.exp x F.+ F.exp x')) . LA.split)
-              (uncurry (\x x' → let (e,e') = (F.exp x, F.exp x') 
-                                    d      = e F.+ e'
-                                 in LA.diag (e F./ d) LA.||| LA.diag (e' F./ d)
-                       ) . LA.split)
+    add = Mor $ \x → let (y1,y2) = LA.split (F.exp x)
+                         z       = y1 F.+ y2
+                      in (F.log z, LA.diag (y1 F./ z) LA.||| LA.diag (y2 F./ z))
 
 instance KnownNat n ⇒ Mul (ℝ  n) where
-    mul = Mor (uncurry (F.*) . LA.split) 
-              (uncurry (\x x' → LA.diag x LA.||| LA.diag x') . LA.split)
+    mul = Mor $ \x → let (x1,x2) = LA.split x in (x1 F.* x2, LA.diag x1 LA.||| LA.diag x2)
 
 instance KnownNat n ⇒ Mul (ℝp n) where
-    mul = Mor (uncurry (F.+) . LA.split) 
-              (\_ → LA.eye LA.||| LA.eye)
+    mul = Mor $ \x → (uncurry (F.+) $ LA.split x, LA.eye LA.||| LA.eye)
 
 instance KnownNat n ⇒ Mul (I  n) where
 
