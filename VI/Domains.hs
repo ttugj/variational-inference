@@ -1,10 +1,32 @@
-{-# LANGUAGE UnicodeSyntax, PolyKinds, DataKinds, TypeFamilies, TypeOperators, GADTs, ConstraintKinds, TypeApplications, AllowAmbiguousTypes, NoImplicitPrelude, UndecidableInstances, NoStarIsType, MultiParamTypeClasses, FlexibleInstances, FlexibleContexts, LiberalTypeSynonyms, ScopedTypeVariables, InstanceSigs #-}
+{-# LANGUAGE UnicodeSyntax, PolyKinds, DataKinds, TypeFamilies, TypeOperators, GADTs, ConstraintKinds, TypeApplications, AllowAmbiguousTypes, NoImplicitPrelude, UndecidableInstances, NoStarIsType, MultiParamTypeClasses, FlexibleInstances, FlexibleContexts, LiberalTypeSynonyms, ScopedTypeVariables, InstanceSigs, DefaultSignatures #-}
 
 {-# OPTIONS_GHC -fplugin GHC.TypeLits.Extra.Solver #-}
 {-# OPTIONS_GHC -fplugin GHC.TypeLits.KnownNat.Solver #-}
 {-# OPTIONS_GHC -fplugin GHC.TypeLits.Normalise #-}
 
 module VI.Domains ( -- * Cartesian category of domains
+
+-- |
+-- A domain is a space together with a canonical
+-- identification with R^n for some natural n; that is,
+-- a global coordinate.
+--
+-- Morphisms between domains are specified as 1-jets
+-- of differentiable maps between corresponding R^n's.
+-- Domains form a Cartesian category (see 'Cart'), with '(,)' as product.
+--
+-- For reference, we exhibit basic domains as open subsets
+-- of (possibly a subspace in) some R^m, and specify the
+-- coordinate:
+--
+-- [@ℝ n@] All of R^n, with identity coordinate.
+-- [@ℝp n@] Positive orthant of R^n, with elementwise logarithm coordinate.
+-- [@I n@] Positive unit cube in R^n, with elementwise logit coordinate.
+-- [@Δ n@] The n-simplex in R^{n+1}, TODO.
+-- [@M n m@] All n × m matrices, identified with R^{nm} with row-major order.
+-- [@Σ n@] Symmetric n × n matrices, identified with R^{n(n+1)/2} using upper triangular part with row-major order.
+-- [@Σp n@] Positive n × n matrices, identified with R^{n(n+1)/2} using upper triangular Cholesky factor, with row-major order and logarithm applied to diagonal elements.
+--
                     Dim, Domain
                   , Ob, Mor
                     -- * Basic domains
@@ -26,6 +48,7 @@ import qualified Numeric.LinearAlgebra.Static as LA
 import qualified GHC.Float as F
 import qualified GHC.Real  as F
 import qualified GHC.Num   as F
+
 
 -- | Dimension of a domain
 type family Dim (x ∷ k) ∷ Nat
@@ -86,15 +109,30 @@ type instance Dim (M  m n) = m * n
 type instance Dim (Σ  n  ) = (n * (1 + n)) `Div` 2
 type instance Dim (Σp n  ) = (n * (1 + n)) `Div` 2
 
--- | Canonical subdomain embedding
+-- | Canonical isomorphism
+class (Ob x, Ob y, Dim x ~ Dim y) ⇒ x ≌ y where
+    iso ∷ Mor x y
+    osi ∷ Mor y x
+    iso = Mor $ \x → (x, LA.eye)
+    osi = Mor $ \x → (x, LA.eye)
+
+instance (KnownNat n, KnownNat m, KnownNat l, l ~ n + m) ⇒ (ℝ n, ℝ m)   ≌ ℝ  l
+instance (KnownNat n, KnownNat m, KnownNat l, l ~ n + m) ⇒ (ℝp n, ℝp m) ≌ ℝp l
+instance (KnownNat n, KnownNat m, KnownNat l, l ~ n + m) ⇒ (I n, I m)   ≌ I  l
+
+-- | Canonical subdomain embedding 
 class (Ob x, Ob y) ⇒ x ⊂ y where
     emb ∷ Mor x y
 
-instance (x ⊂ y, x' ⊂ y') ⇒ (x,x') ⊂ (y,y') where
-    emb = bimap emb emb
-
 instance Ob x ⇒ x ⊂ x where
     emb = id
+
+instance {-# OVERLAPPABLE #-} (x ⊂ y, y ⊂ x, Dim x ~ Dim y) ⇒ x ≌ y where
+    iso = emb
+    osi = emb
+
+instance (x ⊂ y, x' ⊂ y') ⇒ (x,x') ⊂ (y,y') where
+    emb = bimap emb emb
 
 instance KnownNat n ⇒ ℝp n ⊂ ℝ n where
     emb = Mor $ \x → let y = F.exp x in (y, LA.diag y)
@@ -110,16 +148,6 @@ instance KnownNat n ⇒ Σ n ⊂ M n n where
 
 instance KnownNat n ⇒ Σp n ⊂ Σ n where
 
--- | Canonical isomorphism
-class (Ob x, Ob y, Dim x ~ Dim y) ⇒ x ≌ y where
-    iso ∷ Mor x y
-    osi ∷ Mor y x
-    iso = Mor $ \x → (x, LA.eye)
-    osi = Mor $ \x → (x, LA.eye)
-
-instance (KnownNat n, KnownNat m, KnownNat l, l ~ n + m) ⇒ (ℝ n, ℝ m)   ≌ ℝ  l
-instance (KnownNat n, KnownNat m, KnownNat l, l ~ n + m) ⇒ (ℝp n, ℝp m) ≌ ℝp l
-instance (KnownNat n, KnownNat m, KnownNat l, l ~ n + m) ⇒ (I n, I m)   ≌ I  l
 
 -- instance Δ 1 ≌ I 1 where
 
@@ -144,12 +172,18 @@ class ScaleP x where
     scalep ∷ Mor (ℝp 1, x) x
 
 -- | Projective domains
-class ScaleP x ⇒ Scale x where
+class Scale x where
     scale ∷ Mor (ℝ 1, x) x
 
 -- | Involutive domains
 class Invol x where
+    -- | by default, invol corresponds to negation in canonical coordinates
     invol ∷ Mor x x
+    default invol ∷ Ob x ⇒ Mor x x
+    invol = Mor $ \x → (F.negate x, LA.diag (-1))
+
+instance {-# OVERLAPPABLE #-} (Scale x, Ob x) ⇒ ScaleP x where
+    scalep = scale . bimap emb id
 
 instance KnownNat n ⇒ Add (ℝ  n) where
     add = Mor $ \x → (uncurry (F.+) $ LA.split x, LA.eye LA.||| LA.eye)
@@ -166,18 +200,52 @@ instance KnownNat n ⇒ Mul (ℝp n) where
     mul = Mor $ \x → (uncurry (F.+) $ LA.split x, LA.eye LA.||| LA.eye)
 
 instance KnownNat n ⇒ Mul (I  n) where
+    mul = Mor $ \x → let (x1,x2) = LA.split x
+                         (y1,y2) = LA.split $ F.exp x
+                         z       = 1 F.+ y1 F.+ y2
+                      in ( x1 F.+ x2 F.- F.log z
+                         , LA.diag (1 F.- y1 F./ z) LA.||| LA.diag (1 F.- y2 F./ z)
+                         )   
 
+{-
 instance KnownNat n ⇒ Mix (ℝ  n) where
 instance KnownNat n ⇒ Mix (ℝp n) where
 instance KnownNat n ⇒ Mix (I  n) where
--- instance KnownNat n ⇒ Mix (Δ  n) where
+instance KnownNat n ⇒ Mix (Δ  n) where
+-}
 
-instance KnownNat n ⇒ Invol (ℝ  n) where
-instance KnownNat n ⇒ Invol (ℝp n) where
-instance KnownNat n ⇒ Invol (I  n) where
+instance KnownNat n ⇒ Invol (ℝ  n) 
+instance KnownNat n ⇒ Invol (ℝp n) 
+instance KnownNat n ⇒ Invol (I  n) 
 
+{-
 instance KnownNat n ⇒ ScaleP (ℝ  n) where
+    scalep = Mor $ \x → let (c, x') = LA.headTail x
+                            e       = LA.konst $ F.exp c
+                            x''     = e F.* x'
+                         in (x'', LA.col x'' LA.||| LA.diag e)     
+-}
+
 instance KnownNat n ⇒ ScaleP (ℝp n) where
+    scalep = Mor $ \x → let (c, x') = LA.headTail x
+                         in (x' F.+ LA.konst c, 1 LA.||| LA.eye)
 
 instance KnownNat n ⇒ Scale (ℝ  n) where
+    scale = Mor $ \x → let (c, x') = LA.headTail x
+                           c'      = LA.konst c
+                        in (c' F.* x', LA.col x' LA.||| LA.diag c')
 
+{-
+instance (KnownNat m, KnownNat n) ⇒ Add (M m n)
+instance KnownNat n ⇒ Add (Σ n)
+instance KnownNat n ⇒ Add (Σp n)
+
+instance KnownNat n ⇒ Mul (M n n)
+
+instance (KnownNat m, KnownNat n) ⇒ Scale (M m n)
+instance KnownNat n ⇒ Scale (Σ n)
+instance KnownNat n ⇒ ScaleP (Σp n)
+
+mTm ∷ k >= n ⇒ M k n → Σp n
+mmT ∷ k >= n ⇒ M n k → Σp n
+-}
