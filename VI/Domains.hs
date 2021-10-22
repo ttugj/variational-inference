@@ -27,16 +27,15 @@ module VI.Domains ( -- * Cartesian category of domains
 -- [@Σ n@] Symmetric n × n matrices, identified with R^{n(n+1)/2} using upper triangular part with row-major order.
 -- [@Σp n@] Positive n × n matrices, identified with R^{n(n+1)/2} using upper triangular Cholesky factor, with row-major order and logarithm applied to diagonal elements.
 --
-                    Dim, Domain
-                  , Ob, Mor
-                  , fromLinear, fromAffine
+                    Dim, Domain, Mor
                     -- * Basic domains
                   , ℝ, ℝp, I, {- Δ, -} M, Σ, Σp
                     -- * Basic operations
-                  , type(⊂)(..), type(≌)(..), Add(..), Mul(..), ScaleP(..), Scale(..), Mix(..), Invol(..)
+                  , type(⊂)(..), type(≌)(..) --, Add(..), Mul(..), ScaleP(..), Scale(..), Mix(..), Invol(..)
                   ) where
 
 import VI.Categories
+import VI.Jets
 import VI.Util
 
 import Prelude                  (uncurry, ($))
@@ -48,9 +47,10 @@ import Control.Applicative
 
 import qualified Numeric.LinearAlgebra.Static as LA
 import qualified Numeric.LinearAlgebra        as LA'
-import qualified GHC.Float as F
-import qualified GHC.Real  as F
-import qualified GHC.Num   as F
+
+import GHC.Float 
+import GHC.Real  
+import GHC.Num   
 
 
 -- | Dimension of a domain
@@ -59,40 +59,22 @@ type family Dim (x ∷ k) ∷ Nat
 type instance Dim (x,y) = (Dim x) + (Dim y)
 type instance Dim '()   = 0
 
-type Domain d x = (KnownNat d, d ~ Dim x)
-
--- | @Ob x@ is equivalent to @∃ d. Domain d x@
-class    KnownNat (Dim x) ⇒ Ob x
-instance KnownNat (Dim x) ⇒ Ob x
-
+class    KnownNat (Dim x) ⇒ Domain x
+instance KnownNat (Dim x) ⇒ Domain x
 
 -- | Morphisms between domains
-data Mor x y where
-    Mor ∷ (Domain n x, Domain m y) ⇒ (LA.R n → (LA.R m, LA.L m n)) → Mor x y
+data Mor x y = Mor (Jet (Dim x) (Dim y))
 
-instance Cat Ob Mor where
-    id = Mor $ \x → (x, LA.eye)
-    Mor φ . Mor ψ = Mor $ \x → let (y, dψ) = ψ x
-                                   (z, dφ) = φ y
-                                in (z, dφ LA.<> dψ)
+instance Cat Domain Mor where
+    id = Mor id
+    Mor φ . Mor ψ = Mor (φ . ψ)
 
-instance Cart Ob Mor where
-    pr1 ∷ ∀ x y. (Ob x, Ob y, Ob (x,y)) ⇒ Mor (x,y) x
-    pr1 = Mor $ \x → (pr1 $ LA.split @(Dim x) x, LA.eye LA.||| 0)
-    pr2 ∷ ∀ x y. (Ob x, Ob y, Ob (x,y)) ⇒ Mor (x,y) y
-    pr2 = Mor $ \x → (pr2 $ LA.split @(Dim x) x, 0 LA.||| LA.eye)
-    Mor φ × Mor ψ = Mor $ \x → let (y, dφ) = φ x
-                                   (z, dψ) = ψ x
-                                in (y LA.# z, dφ LA.=== dψ)
-
--- | A morphism represented as a linear map in canonical coordinates
-fromLinear ∷ (Domain n x, Domain m y) ⇒ LA.L m n → Mor x y
-fromLinear a = Mor $ \x → (a LA.#> x, a)
-
--- | A morphism represented as an affine map in canonical coordinates
-fromAffine ∷ (Domain n x, Domain m y) ⇒ LA.R m → LA.L m n → Mor x y
-fromAffine y a = Mor $ \x → (y F.+ a LA.#> x, a)
-
+instance Cart Domain Mor where
+    pr1 ∷ ∀ x y. (Domain x, Domain y, Domain (x,y)) ⇒ Mor (x,y) x
+    pr1 = Mor pr1' 
+    pr2 ∷ ∀ x y. (Domain x, Domain y, Domain (x,y)) ⇒ Mor (x,y) y
+    pr2 = Mor pr2' 
+    Mor φ × Mor ψ = Mor (φ ⊙ ψ)
 
 -- | Unconstrained real vectors, coordinate: @id@
 data ℝ  (n ∷ Nat)
@@ -100,12 +82,6 @@ data ℝ  (n ∷ Nat)
 data ℝp (n ∷ Nat)
 -- | [0,1]^n, coordinate: @log x/(1-x)@
 data I  (n ∷ Nat)
-
-{-
--- | standard simplex in @ℝ (n+1)@ (TODO)
-data Δ  (n ∷ Nat)
--}
-
 -- | Unconstrained real matrices
 data M  (m ∷ Nat) (n ∷ Nat)
 -- | Symmetric real matrices
@@ -118,28 +94,27 @@ data U  (n ∷ Nat)
 type instance Dim (ℝ  n  ) = n
 type instance Dim (ℝp n  ) = n
 type instance Dim (I  n  ) = n
--- type instance Dim (Δ  n  ) = n
 type instance Dim (M  m n) = m * n
 type instance Dim (Σ  n  ) = (n * (1 + n)) `Div` 2
 type instance Dim (Σp n  ) = (n * (1 + n)) `Div` 2
 type instance Dim (U  n  ) = (n * (1 + n)) `Div` 2
 
 -- | Canonical isomorphism
-class (Ob x, Ob y, Dim x ~ Dim y) ⇒ x ≌ y where
+class (Domain x, Domain y, Dim x ~ Dim y) ⇒ x ≌ y where
     iso ∷ Mor x y
     osi ∷ Mor y x
-    iso = Mor $ \x → (x, LA.eye)
-    osi = Mor $ \x → (x, LA.eye)
+    iso = Mor id
+    osi = Mor id
 
 instance (KnownNat n, KnownNat m, KnownNat l, l ~ n + m) ⇒ (ℝ n, ℝ m)   ≌ ℝ  l
 instance (KnownNat n, KnownNat m, KnownNat l, l ~ n + m) ⇒ (ℝp n, ℝp m) ≌ ℝp l
 instance (KnownNat n, KnownNat m, KnownNat l, l ~ n + m) ⇒ (I n, I m)   ≌ I  l
 
--- | Canonical subdomain embedding 
-class (Ob x, Ob y) ⇒ x ⊂ y where
+-- | Canonical subdomain embedding
+class (Domain x, Domain y) ⇒ x ⊂ y where
     emb ∷ Mor x y
 
-instance Ob x ⇒ x ⊂ x where
+instance Domain x ⇒ x ⊂ x where
     emb = id
 
 instance {-# OVERLAPPABLE #-} (x ⊂ y, y ⊂ x, Dim x ~ Dim y) ⇒ x ≌ y where
@@ -150,20 +125,23 @@ instance (x ⊂ y, x' ⊂ y') ⇒ (x,x') ⊂ (y,y') where
     emb = bimap emb emb
 
 instance KnownNat n ⇒ ℝp n ⊂ ℝ n where
-    emb = Mor $ \x → let y = F.exp x in (y, LA.diag y)
+    emb = Mor $ fromPoints exp
 
 instance KnownNat n ⇒ I n ⊂ ℝp n where
-    emb = Mor $ \x → let y = F.exp x
-                         z = y F./ (1 F.+ y)
-                      in (F.log z, LA.diag $ 1 F.- z)
-
--- instance (KnownNat n, KnownNat n', n' ~ n + 1) ⇒ Δ n ⊂ I n' where
+    emb = Mor $ fromPoints $ \x → let y = exp x in y / (1 + y)
 
 instance KnownNat n ⇒ Σ n ⊂ M n n where
-    emb = fromLinear (embΣM @n)
+    emb = Mor $ linear (embΣM @n) -- TODO: rewrite using 'law'
 
 instance KnownNat n ⇒ U n ⊂ M n n where
-    emb = fromLinear (embUM @n)    
+    emb = Mor $ linear (embUM @n)    
+
+-- REWRITE
+--
+--
+
+{-
+
 
 -- | Upper-triangular Cholesky factor
 chol ∷ KnownNat n ⇒ Mor (Σp n) (U n)
@@ -209,10 +187,10 @@ class Scale x where
 class Invol x where
     -- | by default, invol corresponds to negation in canonical coordinates
     invol ∷ Mor x x
-    default invol ∷ Ob x ⇒ Mor x x
+    default invol ∷ Domain x ⇒ Mor x x
     invol = Mor $ \x → (F.negate x, LA.diag (-1))
 
-instance {-# OVERLAPPABLE #-} (Scale x, Ob x) ⇒ ScaleP x where
+instance {-# OVERLAPPABLE #-} (Scale x, Domain x) ⇒ ScaleP x where
     scalep = scale . bimap emb id
 
 instance KnownNat n ⇒ Add (ℝ  n) where
@@ -280,3 +258,6 @@ instance KnownNat n ⇒ ScaleP (Σp n)
 mTm' ∷ k >= n ⇒ M k n → Σp n
 mmT' ∷ k >= n ⇒ M n k → Σp n
 -}
+
+-}
+
