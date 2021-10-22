@@ -5,6 +5,7 @@
 {-# OPTIONS_GHC -fplugin GHC.TypeLits.Normalise #-}
 
 module VI.Jets ( Jet(..)
+               , point, linear, affine
                ) where
 
 import VI.Categories
@@ -100,4 +101,18 @@ instance Law Jet where
                                       y' = G.generate m $ (x' LA'.!)
                                       Just y = LA.create y'
                                    in (y,d) 
+
+point ∷ (KnownNat n, KnownNat m) ⇒ LA.R n → Jet m n
+point x = Jet $ \_ → (x, 0)
+
+linear ∷ (KnownNat n, KnownNat m) ⇒ LA.L m n → Jet n m
+linear a = Jet $ \x → (a LA.#> x, a)
+
+-- | This is a basic example of pointed style:
+--
+-- @
+--     affine b a = fromPoints $ \x → point b + linear a ▶ x 
+-- @
+affine ∷ (KnownNat n, KnownNat m) ⇒ LA.R m → LA.L m n → Jet n m
+affine b a = fromPoints $ \x → point b + linear a ▶ x
 
