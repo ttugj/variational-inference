@@ -3,6 +3,7 @@
 {-# OPTIONS_GHC -fplugin GHC.TypeLits.Extra.Solver #-}
 {-# OPTIONS_GHC -fplugin GHC.TypeLits.KnownNat.Solver #-}
 {-# OPTIONS_GHC -fplugin GHC.TypeLits.Normalise #-}
+{-# OPTIONS_GHC -fconstraint-solver-iterations=10 #-}
 
 module VI.Domains ( -- * Cartesian category of domains
 
@@ -42,11 +43,13 @@ import Prelude                  (uncurry, ($))
 
 import GHC.TypeLits
 import GHC.TypeLits.Extra
+import Data.Maybe
 import Data.Functor
 import Control.Applicative
 
 import qualified Numeric.LinearAlgebra.Static as LA
 import qualified Numeric.LinearAlgebra        as LA'
+import qualified Data.Vector.Unboxed          as U
 
 import GHC.Float 
 import GHC.Real  
@@ -131,37 +134,17 @@ instance KnownNat n ⇒ I n ⊂ ℝp n where
     emb = Mor $ fromPoints $ \x → let y = exp x in y / (1 + y)
 
 instance KnownNat n ⇒ Σ n ⊂ M n n where
-    emb = Mor $ linear (embΣM @n) -- TODO: rewrite using 'law'
+    emb = let n = intVal @n in Mor . law . mkFin' $ uncurry (ixΣ n) <$> lixM n
 
 instance KnownNat n ⇒ U n ⊂ M n n where
-    emb = Mor $ linear (embUM @n)    
-
--- REWRITE
---
---
-
-{-
-
+    emb = let n = intVal @n 
+              ι ∷ Jet ((Dim (U n)) + 1) (Dim (M n n))
+              ι = law . mkFin' $ fromMaybe ((n*(n+1)) `div` 2) . uncurry (ixU n) <$> lixM n 
+           in Mor $ ι . (id ⊙ 0)
 
 -- | Upper-triangular Cholesky factor
 chol ∷ KnownNat n ⇒ Mor (Σp n) (U n)
-chol = Mor cholU 
-       
-
--- |  
---mTm ∷ KnownNat n ⇒ Mor (M n n) (Σ n)
---mTm = Mor $ \x → _ -- TODO
-
-instance KnownNat n ⇒ Σp n ⊂ Σ n where
-    -- we factor Σp n ⊂ Σ n through the space of upper-triangular matrices
- --   emb = mTm . emb . chol
-
--- instance Δ 1 ≌ I 1 where
-
-{-
-simplexProjection ∷ Mor (ℝp n) (Δ n) 
--}
-
+chol = Mor . Jet $ cholU 
 
 -- | Additive domains 
 class Add x where
@@ -188,32 +171,56 @@ class Invol x where
     -- | by default, invol corresponds to negation in canonical coordinates
     invol ∷ Mor x x
     default invol ∷ Domain x ⇒ Mor x x
-    invol = Mor $ \x → (F.negate x, LA.diag (-1))
+    invol = Mor $ fromPoints negate
 
 instance {-# OVERLAPPABLE #-} (Scale x, Domain x) ⇒ ScaleP x where
     scalep = scale . bimap emb id
 
-instance KnownNat n ⇒ Add (ℝ  n) where
-    add = Mor $ \x → (uncurry (F.+) $ LA.split x, LA.eye LA.||| LA.eye)
+instance KnownNat n ⇒ Add (ℝ n) where
+    add = Mor $ fromPoints2' (+)
 
 instance KnownNat n ⇒ Add (ℝp n) where
-    add = Mor $ \x → let (y1,y2) = LA.split (F.exp x)
-                         z       = y1 F.+ y2
-                      in (F.log z, LA.diag (y1 F./ z) LA.||| LA.diag (y2 F./ z))
+    add = Mor $ fromPoints2' $ \x y → log (exp x + exp y)
 
-instance KnownNat n ⇒ Mul (ℝ  n) where
-    mul = Mor $ \x → let (x1,x2) = LA.split x in (x1 F.* x2, LA.diag x1 LA.||| LA.diag x2)
+instance KnownNat n ⇒ Mul (ℝ n) where
+    mul = Mor $ fromPoints2' (*)
 
 instance KnownNat n ⇒ Mul (ℝp n) where
-    mul = Mor $ \x → (uncurry (F.+) $ LA.split x, LA.eye LA.||| LA.eye)
+    mul = Mor $ fromPoints2' (+)
 
-instance KnownNat n ⇒ Mul (I  n) where
-    mul = Mor $ \x → let (x1,x2) = LA.split x
-                         (y1,y2) = LA.split $ F.exp x
-                         z       = 1 F.+ y1 F.+ y2
-                      in ( x1 F.+ x2 F.- F.log z
-                         , LA.diag (1 F.- y1 F./ z) LA.||| LA.diag (1 F.- y2 F./ z)
-                         )   
+instance KnownNat n ⇒ Mul (I n) where
+    mul = Mor $ fromPoints2' $ \x y → x + y - log (1 + exp x + exp y)  
+
+instance KnownNat n ⇒ ScaleP (ℝp n) where
+    scalep = let n = intVal @n
+                 d ∷ Jet 1 n
+                 d = law $ Fin' $ U.replicate n 0
+              in Mor $ fromPoints2' $ \c x → (d ▶ c) + x
+
+instance KnownNat n ⇒ Scale (ℝ n) where
+    scale  = let n = intVal @n
+                 d ∷ Jet 1 n
+                 d = law $ Fin' $ U.replicate n 0
+              in Mor $ fromPoints2' $ \c x → (d ▶ c) * x
+
+instance KnownNat n ⇒ Invol (ℝ  n) 
+instance KnownNat n ⇒ Invol (ℝp n) 
+instance KnownNat n ⇒ Invol (I  n) 
+
+{-
+
+-- |  
+--mTm ∷ KnownNat n ⇒ Mor (M n n) (Σ n)
+
+instance KnownNat n ⇒ Σp n ⊂ Σ n where
+    -- we factor Σp n ⊂ Σ n through the space of upper-triangular matrices
+ --   emb = mTm . emb . chol
+
+-- instance Δ 1 ≌ I 1 where
+
+{-
+simplexProjection ∷ Mor (ℝp n) (Δ n) 
+-}
 
 {-
 instance KnownNat n ⇒ Mix (ℝ  n) where
@@ -221,28 +228,6 @@ instance KnownNat n ⇒ Mix (ℝp n) where
 instance KnownNat n ⇒ Mix (I  n) where
 instance KnownNat n ⇒ Mix (Δ  n) where
 -}
-
-instance KnownNat n ⇒ Invol (ℝ  n) 
-instance KnownNat n ⇒ Invol (ℝp n) 
-instance KnownNat n ⇒ Invol (I  n) 
-
-{-
--- don't need this
-instance KnownNat n ⇒ ScaleP (ℝ  n) where
-    scalep = Mor $ \x → let (c, x') = LA.headTail x
-                            e       = LA.konst $ F.exp c
-                            x''     = e F.* x'
-                         in (x'', LA.col x'' LA.||| LA.diag e)     
--}
-
-instance KnownNat n ⇒ ScaleP (ℝp n) where
-    scalep = Mor $ \x → let (c, x') = LA.headTail x
-                         in (x' F.+ LA.konst c, 1 LA.||| LA.eye)
-
-instance KnownNat n ⇒ Scale (ℝ  n) where
-    scale = Mor $ \x → let (c, x') = LA.headTail x
-                           c'      = LA.konst c
-                        in (c' F.* x', LA.col x' LA.||| LA.diag c')
 
 {-
 instance (KnownNat m, KnownNat n) ⇒ Add (M m n)

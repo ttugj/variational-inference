@@ -13,10 +13,12 @@ module VI.Categories ( -- * Categories
                      , fromPoints, toPoints, fromPoints2, toPoints2, fromPoints2', toPoints2'
                      , (▶)
                        -- * Lawvere theories
-                     , Fin'(..), Law(..)
+                     , Fin'(..), mkFin', Law(..)
                        -- * Auxiliary
                      , intVal
                      ) where
+
+import Prelude (otherwise, error)
 
 import Data.Kind
 import Data.Tuple
@@ -24,11 +26,14 @@ import Data.Functor
 import Data.Proxy
 import Control.Applicative
 import GHC.Types
+import GHC.Classes
 import GHC.Num
 import GHC.TypeLits
 import Data.Function (($))
 import qualified Data.Function as F
 import qualified Data.Vector.Unboxed as U
+import qualified Data.List as L
+
 
 class Unconstrained x
 instance Unconstrained x
@@ -99,6 +104,14 @@ data Fin' (n ∷ Nat) (m ∷ Nat) where
 
 intVal ∷ ∀ n. KnownNat n ⇒ Int
 intVal = fromInteger $ natVal (Proxy ∷ Proxy n)
+
+mkFin' ∷ ∀ n m. (KnownNat n, KnownNat m) ⇒ [Int] → Fin' n m
+mkFin' js = let m = intVal @m
+                n = intVal @n
+                v | L.length js == m && L.all (\j → j >= 0 && j < n) js  
+                                 = U.fromList js
+                  | otherwise    = error "not a valid map of finite sets"
+             in Fin' v   
 
 instance Cat KnownNat Fin' where
     id ∷ ∀ n. KnownNat n ⇒ Fin' n n

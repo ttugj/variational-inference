@@ -4,7 +4,7 @@
 {-# OPTIONS_GHC -fplugin GHC.TypeLits.KnownNat.Solver #-}
 {-# OPTIONS_GHC -fplugin GHC.TypeLits.Normalise #-}
 
-module VI.Util ( ixM, ixΣ, ixU, lixM, lixΣ, embΣM, embUM, cholU ) where
+module VI.Util ( ixM, ixΣ, ixU, lixM, lixΣ, cholU ) where
 
 import Data.Maybe
 import Data.Proxy
@@ -43,20 +43,6 @@ diagU n = L.unfoldr go (0,n)
             where
                go (i, 0) = Nothing
                go (i, k) = Just (i, (i+k,k-1))
-
-embΣM ∷ ∀ n. KnownNat n ⇒ LA.L (n * n) ((n * (1 + n)) `Div` 2)
-embΣM = let n  = fromInteger (natVal (Proxy ∷ Proxy n))
-            js = uncurry (ixΣ n) <$> lixM n
-            mkr j = G.modify (\v → GM.write v j 1) (G.replicate n 0)
-            Just a = LA.create $ LA'.fromRows $ mkr <$> js
-         in a
-
-embUM ∷ ∀ n. KnownNat n ⇒ LA.L (n * n) ((n * (1 + n)) `Div` 2)
-embUM = let n  = fromInteger (natVal (Proxy ∷ Proxy n))
-            js = catMaybes $ uncurry (ixU n) <$> lixM n
-            mkr j = G.modify (\v → GM.write v j 1) (G.replicate n 0)
-            Just a = LA.create $ LA'.fromRows $ mkr <$> js
-         in a
 
 cholU ∷ ∀ n m. (KnownNat n, KnownNat m,  m ~ ((n * (1 + n)) `Div` 2)) ⇒ LA.R m → (LA.R m, LA.L m m)
 cholU = let n       = fromInteger (natVal (Proxy ∷ Proxy n))
