@@ -8,13 +8,16 @@
 module VI.Domains ( -- * Cartesian category of domains
 
 -- |
--- A domain is a space together with a canonical
--- identification with R^n for some natural n; that is,
--- a global coordinate.
+-- A domain is a space together with a chosen identification 
+-- with R^n for some natural n; that is, a global coordinate.
 --
 -- Morphisms between domains are specified as 1-jets
 -- of differentiable maps between corresponding R^n's.
--- Domains form a Cartesian category (see 'Cart'), with '(,)' as product.
+-- Domains form a Cartesian category (see 'Cart'), with '(,)' as product,
+-- equivalent to 'Jet'. The additional structure comes in the form of
+-- distinguished embeddings (see '⊂') and a other structural maps. The purpose
+-- is to serve as parameter domains as well as target spaces for families 
+-- of probability distributions.
 --
 -- For reference, we exhibit basic domains as open subsets
 -- of (possibly a subspace in) some R^m, and specify the
@@ -32,7 +35,8 @@ module VI.Domains ( -- * Cartesian category of domains
                     -- * Basic domains
                   , ℝ, ℝp, I, {- Δ, -} M, Σ, Σp
                     -- * Basic operations
-                  , type(⊂)(..), type(≌)(..) --, Add(..), Mul(..), ScaleP(..), Scale(..), Mix(..), Invol(..)
+                  , type(⊂)(..), type(≌)(..)
+                  , Add(..), Mul(..), ScaleP(..), Scale(..), Mix(..), Invol(..)
                   ) where
 
 import VI.Categories
@@ -54,7 +58,6 @@ import qualified Data.Vector.Unboxed          as U
 import GHC.Float 
 import GHC.Real  
 import GHC.Num   
-
 
 -- | Dimension of a domain
 type family Dim (x ∷ k) ∷ Nat
@@ -79,19 +82,12 @@ instance Cart Domain Mor where
     pr2 = Mor pr2' 
     Mor φ × Mor ψ = Mor (φ ⊙ ψ)
 
--- | Unconstrained real vectors, coordinate: @id@
 data ℝ  (n ∷ Nat)
--- | Positive orthant in @ℝ n@, coordinate: @log x@
 data ℝp (n ∷ Nat)
--- | [0,1]^n, coordinate: @log x/(1-x)@
 data I  (n ∷ Nat)
--- | Unconstrained real matrices
 data M  (m ∷ Nat) (n ∷ Nat)
--- | Symmetric real matrices
 data Σ  (n ∷ Nat)
--- | Positive real matrices
 data Σp (n ∷ Nat)
--- | Upper-triangular real matrices
 data U  (n ∷ Nat)
 
 type instance Dim (ℝ  n  ) = n
@@ -147,33 +143,32 @@ chol ∷ KnownNat n ⇒ Mor (Σp n) (U n)
 chol = Mor . Jet $ cholU 
 
 -- | Additive domains 
-class Add x where
+class Domain x ⇒ Add x where
     add ∷ Mor (x, x) x
 
 -- | Multiplicative domains
-class Mul x where
+class Domain x ⇒ Mul x where
     mul ∷ Mor (x, x) x
 
 -- | Convex domains
-class Mix x where
+class Domain x ⇒ Mix x where
     mix ∷ Mor (I 1, x, x) x
 
 -- | Conical domains
-class ScaleP x where
+class Domain x ⇒ ScaleP x where
     scalep ∷ Mor (ℝp 1, x) x
 
 -- | Projective domains
-class Scale x where
+class Domain x ⇒ Scale x where
     scale ∷ Mor (ℝ 1, x) x
 
 -- | Involutive domains
-class Invol x where
+class Domain x ⇒ Invol x where
     -- | by default, invol corresponds to negation in canonical coordinates
     invol ∷ Mor x x
-    default invol ∷ Domain x ⇒ Mor x x
     invol = Mor $ fromPoints negate
 
-instance {-# OVERLAPPABLE #-} (Scale x, Domain x) ⇒ ScaleP x where
+instance {-# OVERLAPPABLE #-} Scale x ⇒ ScaleP x where
     scalep = scale . bimap emb id
 
 instance KnownNat n ⇒ Add (ℝ n) where
@@ -206,6 +201,10 @@ instance KnownNat n ⇒ Scale (ℝ n) where
 instance KnownNat n ⇒ Invol (ℝ  n) 
 instance KnownNat n ⇒ Invol (ℝp n) 
 instance KnownNat n ⇒ Invol (I  n) 
+
+
+test ∷ Add x ⇒ Mor (x,x) x
+test = fromPoints2 (\x y → add ■ (x,y))
 
 {-
 
