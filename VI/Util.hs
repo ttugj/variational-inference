@@ -4,7 +4,12 @@
 {-# OPTIONS_GHC -fplugin GHC.TypeLits.KnownNat.Solver #-}
 {-# OPTIONS_GHC -fplugin GHC.TypeLits.Normalise #-}
 
-module VI.Util ( ixM, ixΣ, ixU, lixM, lixΣ, cholU, basisH ) where
+module VI.Util ( 
+        -- |
+        -- This module collects certain data that actually needs to be computed.
+        -- Ideally, these would all be static.
+                 ixM, ixΣ, ixU, lixM, lixΣ, cholU, basisH 
+               ) where
 
 import Data.Maybe
 import Data.Proxy
