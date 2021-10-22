@@ -5,7 +5,7 @@
 {-# OPTIONS_GHC -fplugin GHC.TypeLits.Normalise #-}
 
 module VI.Jets ( Jet(..)
-               , point, linear, affine
+               , point, linear, affine, expand
                ) where
 
 import VI.Categories
@@ -98,7 +98,7 @@ instance Law Jet where
                        d' = LA'.fromRows $ mkRow <$> G.toList j
                        Just d = LA.create d'
                     in Jet $ \x → let x' = LA.extract x
-                                      y' = G.generate m $ (x' LA'.!)
+                                      y' = G.map (x' LA'.!) j
                                       Just y = LA.create y'
                                    in (y,d) 
 
@@ -115,4 +115,7 @@ linear a = Jet $ \x → (a LA.#> x, a)
 -- @
 affine ∷ (KnownNat n, KnownNat m) ⇒ LA.R m → LA.L m n → Jet n m
 affine b a = fromPoints $ \x → point b + linear a ▶ x
+
+expand ∷ ∀ n. KnownNat n ⇒ Jet 1 n
+expand = let n = intVal @n in law $ Fin' $ G.replicate n 0
 

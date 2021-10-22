@@ -26,7 +26,7 @@ module VI.Domains ( -- * Cartesian category of domains
 -- [@ℝ n@] All of R^n, with identity coordinate.
 -- [@ℝp n@] Positive orthant of R^n, with elementwise logarithm coordinate.
 -- [@I n@] Positive unit cube in R^n, with elementwise logit coordinate.
--- [@Δ n@] The n-simplex in R^{n+1}, with coordinate xi(p) = ( Σ{j≤i} log pj - 1/(n+1) Σ{j≤n} log pj ) mapping into R^n.
+-- [@Δ n@] The n-simplex in R^{n+1}, with coordinate p -> log p - 1/(n+1) Σ log p mapping onto the hyperplane orthogonal to (1,...,1) in R^{n+1}.
 -- [@M n m@] All n × m matrices, identified with R^{nm} with row-major order.
 -- [@Σ n@] Symmetric n × n matrices, identified with R^{n(n+1)/2} using upper triangular part with row-major order.
 -- [@Σp n@] Positive n × n matrices, identified with R^{n(n+1)/2} using upper triangular Cholesky factor, with row-major order and logarithm applied to diagonal elements.
@@ -37,6 +37,9 @@ module VI.Domains ( -- * Cartesian category of domains
                     -- * Basic operations
                   , type(⊂)(..), type(≌)(..)
                   , Add(..), Mul(..), ScaleP(..), Scale(..), Mix(..), Invol(..)
+                  , simplexProjection
+                    -- * test
+                  , test, test'
                   ) where
 
 import VI.Categories
@@ -53,7 +56,6 @@ import Control.Applicative
 
 import qualified Numeric.LinearAlgebra.Static as LA
 import qualified Numeric.LinearAlgebra        as LA'
-import qualified Data.Vector.Unboxed          as U
 
 import GHC.Float 
 import GHC.Real  
@@ -190,31 +192,29 @@ instance KnownNat n ⇒ Mul (I n) where
     mul = Mor $ fromPoints2' $ \x y → x + y - log (1 + exp x + exp y)  
 
 instance KnownNat n ⇒ ScaleP (ℝp n) where
-    scalep = let n = intVal @n
-                 d ∷ Jet 1 n
-                 d = law $ Fin' $ U.replicate n 0
-              in Mor $ fromPoints2' $ \c x → (d ▶ c) + x
-
+    scalep = Mor $ fromPoints2' $ \c x → (expand ▶ c) + x
+              
 instance KnownNat n ⇒ Scale (ℝ n) where
-    scale  = let n = intVal @n
-                 d ∷ Jet 1 n
-                 d = law $ Fin' $ U.replicate n 0
-              in Mor $ fromPoints2' $ \c x → (d ▶ c) * x
+    scale  = Mor $ fromPoints2' $ \c x → (expand ▶ c) * x
 
 instance KnownNat n ⇒ Invol (ℝ  n) 
 instance KnownNat n ⇒ Invol (ℝp n) 
 instance KnownNat n ⇒ Invol (I  n) 
 
 simplexProjection ∷ ∀ n. KnownNat n ⇒ Mor (ℝp (n + 1)) (Δ n) 
-simplexProjection = let n = intVal @n
-                        f i j | i < j   =  i/fromIntegral n
-                              | i >= j  = -i/fromIntegral n - 1
-                        Just a = LA.create $ LA'.build (n, n+1) f
-                     in Mor $ linear a
+simplexProjection = Mor $ linear (LA.tr basisH)
 
-test ∷ Add x ⇒ Mor (x,x) x
-test = fromPoints2 (\x y → x ◀ add $ y)
+instance (KnownNat n, KnownNat m, m ~ (n + 1)) ⇒ Δ n ⊂ ℝp m where
+    emb = Mor $ fromPoints $ \x → let y = linear basisH ▶ x
+                                      s = log (linear 1 ▶ exp y)
+                                   in y - (expand ▶ s)
 
+test ∷ KnownNat n ⇒ Mor (Δ n) (Δ n)
+test = simplexProjection . emb
+
+test' = let Mor (Jet f) = test @3
+            g = pr1 . f
+         in g . LA.fromList <$> [[0,1,2],[1,2,3],[2,3,4],[6,6,6]]
 
 {-
 

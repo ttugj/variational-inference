@@ -31,7 +31,7 @@ import GHC.Num
 import GHC.TypeLits
 import Data.Function (($))
 import qualified Data.Function as F
-import qualified Data.Vector.Unboxed as U
+import qualified Data.Vector.Storable as V
 import qualified Data.List as L
 
 
@@ -110,7 +110,7 @@ toPoints2' f = \x x' → f . (x ⊙ x')
 --
 -- The vector @j@ in @(Fin' j ∷ Fin' n m)@ should consist of @m@ integers in the range @[0..n-1]@. This is not enforced statically.
 data Fin' (n ∷ Nat) (m ∷ Nat) where
-    Fin' ∷ (KnownNat n, KnownNat m) ⇒ U.Vector Int → Fin' n m
+    Fin' ∷ (KnownNat n, KnownNat m) ⇒ V.Vector Int → Fin' n m
 
 intVal ∷ ∀ n. KnownNat n ⇒ Int
 intVal = fromInteger $ natVal (Proxy ∷ Proxy n)
@@ -119,24 +119,24 @@ mkFin' ∷ ∀ n m. (KnownNat n, KnownNat m) ⇒ [Int] → Fin' n m
 mkFin' js = let m = intVal @m
                 n = intVal @n
                 v | L.length js == m && L.all (\j → j >= 0 && j < n) js  
-                                 = U.fromList js
+                                 = V.fromList js
                   | otherwise    = error "not a valid map of finite sets"
              in Fin' v   
 
 instance Cat KnownNat Fin' where
     id ∷ ∀ n. KnownNat n ⇒ Fin' n n
-    id = Fin' $ U.generate (intVal @n) id
-    Fin' j . Fin' k = Fin' $ U.map (k U.!) j
+    id = Fin' $ V.generate (intVal @n) id
+    Fin' j . Fin' k = Fin' $ V.map (k V.!) j
 
 instance Cart' Fin' where
     pr1' ∷ ∀ n m. (KnownNat n, KnownNat m) ⇒ Fin' (n + m) n
-    pr1' = let n = intVal @n in Fin' $ U.generate n id
+    pr1' = let n = intVal @n in Fin' $ V.generate n id
     pr2' ∷ ∀ n m. (KnownNat n, KnownNat m) ⇒ Fin' (n + m) m
     pr2' = let n = intVal @n
                m = intVal @m
-            in Fin' $ U.generate n $ (m +) . id
+            in Fin' $ V.generate n $ (m +) . id
     (⊙) ∷ Fin' n m → Fin' n m' → Fin' n (m + m')
-    Fin' j ⊙ Fin' k = Fin' $ j U.++ k
+    Fin' j ⊙ Fin' k = Fin' $ j V.++ k
 
 -- | Lawvere theory
 class Cart' c ⇒ Law c where
