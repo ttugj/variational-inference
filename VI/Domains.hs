@@ -190,22 +190,27 @@ instance KnownNat n ⇒ Mul (I n) where
     mul = Mor $ fromPoints2' $ \x y → x + y - log (1 + exp x + exp y)  
 
 instance KnownNat n ⇒ ScaleP (ℝp n) where
-    scalep = Mor $ fromPoints2' $ \c x → (expand ▶ c) + x
+    scalep = Mor $ fromPoints2' $ \c x → (diag ▶ c) + x
               
 instance KnownNat n ⇒ Scale (ℝ n) where
-    scale  = Mor $ fromPoints2' $ \c x → (expand ▶ c) * x
+    scale  = Mor $ fromPoints2' $ \c x → (diag ▶ c) * x
 
 instance KnownNat n ⇒ Invol (ℝ  n) 
 instance KnownNat n ⇒ Invol (ℝp n) 
 instance KnownNat n ⇒ Invol (I  n) 
 
+-- | The simplex @Δ n@ is a retract of @ℝ (n+1)@, so that 
+--
+-- @
+-- simplexProjection . emb = id
+-- @
 simplexProjection ∷ ∀ n. KnownNat n ⇒ Mor (ℝp (n + 1)) (Δ n) 
 simplexProjection = Mor $ linear (LA.tr basisH)
 
 instance (KnownNat n, KnownNat m, m ~ (n + 1)) ⇒ Δ n ⊂ ℝp m where
     emb = Mor $ fromPoints $ \x → let y = linear basisH ▶ x
                                       s = log (linear 1 ▶ exp y)
-                                   in y - (expand ▶ s)
+                                   in y - (diag ▶ s)
 
 {-
 
