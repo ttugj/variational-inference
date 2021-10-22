@@ -10,12 +10,18 @@ module VI.Jets ( Jet(..)
 import VI.Categories
 
 import Prelude                  (uncurry, ($), const)
+import Data.Maybe
+import Data.Functor
 import GHC.TypeLits
 import GHC.TypeLits.Extra
 import qualified Numeric.LinearAlgebra.Static as LA
+import qualified Numeric.LinearAlgebra as LA'
 import GHC.Float 
 import GHC.Real  
 import GHC.Num   
+
+import qualified Data.Vector.Generic as G
+import qualified Data.Vector.Generic.Mutable as GM
 
 -- | 1-jet of a map R^n -> R^m
 --
@@ -83,5 +89,15 @@ instance (KnownNat n, KnownNat m) ⇒ Floating (Jet n m) where
     acosh          = lift1 @Floating $ \x → (asinh x, recip $ sinh x)
     atanh          = lift1 @Floating $ \x → let y = cosh x in (atanh x, y * y)
 
-
+instance Law Jet where
+    law ∷ ∀ n m. Fin' n m → Jet n m
+    law (Fin' j) = let m = intVal @m
+                       n = intVal @n   
+                       mkRow i = G.modify (\v → GM.write v i 1) (G.replicate n 0)
+                       d' = LA'.fromRows $ mkRow <$> G.toList j
+                       Just d = LA.create d'
+                    in Jet $ \x → let x' = LA.extract x
+                                      y' = G.generate m $ (x' LA'.!)
+                                      Just y = LA.create y'
+                                   in (y,d) 
 
