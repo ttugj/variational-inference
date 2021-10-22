@@ -38,8 +38,6 @@ module VI.Domains ( -- * Cartesian category of domains
                   , type(⊂)(..), type(≌)(..)
                   , Add(..), Mul(..), ScaleP(..), Scale(..), Mix(..), Invol(..)
                   , simplexProjection
-                    -- * test
-                  , test, test'
                   ) where
 
 import VI.Categories
@@ -208,13 +206,6 @@ instance (KnownNat n, KnownNat m, m ~ (n + 1)) ⇒ Δ n ⊂ ℝp m where
     emb = Mor $ fromPoints $ \x → let y = linear basisH ▶ x
                                       s = log (linear 1 ▶ exp y)
                                    in y - (expand ▶ s)
-
-test ∷ KnownNat n ⇒ Mor (Δ n) (Δ n)
-test = simplexProjection . emb
-
-test' = let Mor (Jet f) = test @3
-            g = pr1 . f
-         in g . LA.fromList <$> [[0,1,2],[1,2,3],[2,3,4],[6,6,6]]
 
 {-
 
