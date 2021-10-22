@@ -26,14 +26,14 @@ module VI.Domains ( -- * Cartesian category of domains
 -- [@ℝ n@] All of R^n, with identity coordinate.
 -- [@ℝp n@] Positive orthant of R^n, with elementwise logarithm coordinate.
 -- [@I n@] Positive unit cube in R^n, with elementwise logit coordinate.
--- [@Δ n@] The n-simplex in R^{n+1}, TODO.
+-- [@Δ n@] The n-simplex in R^{n+1}, with coordinate xi(p) = ( Σ{j≤i} log pj - 1/(n+1) Σ{j≤n} log pj ) mapping into R^n.
 -- [@M n m@] All n × m matrices, identified with R^{nm} with row-major order.
 -- [@Σ n@] Symmetric n × n matrices, identified with R^{n(n+1)/2} using upper triangular part with row-major order.
 -- [@Σp n@] Positive n × n matrices, identified with R^{n(n+1)/2} using upper triangular Cholesky factor, with row-major order and logarithm applied to diagonal elements.
 --
                     Dim, Domain, Mor
                     -- * Basic domains
-                  , ℝ, ℝp, I, {- Δ, -} M, Σ, Σp
+                  , ℝ, ℝp, I, Δ, M, Σ, Σp
                     -- * Basic operations
                   , type(⊂)(..), type(≌)(..)
                   , Add(..), Mul(..), ScaleP(..), Scale(..), Mix(..), Invol(..)
@@ -58,6 +58,7 @@ import qualified Data.Vector.Unboxed          as U
 import GHC.Float 
 import GHC.Real  
 import GHC.Num   
+import GHC.Classes
 
 -- | Dimension of a domain
 type family Dim (x ∷ k) ∷ Nat
@@ -85,6 +86,7 @@ instance Cart Domain Mor where
 data ℝ  (n ∷ Nat)
 data ℝp (n ∷ Nat)
 data I  (n ∷ Nat)
+data Δ  (n ∷ Nat)
 data M  (m ∷ Nat) (n ∷ Nat)
 data Σ  (n ∷ Nat)
 data Σp (n ∷ Nat)
@@ -93,6 +95,7 @@ data U  (n ∷ Nat)
 type instance Dim (ℝ  n  ) = n
 type instance Dim (ℝp n  ) = n
 type instance Dim (I  n  ) = n
+type instance Dim (Δ  n  ) = n
 type instance Dim (M  m n) = m * n
 type instance Dim (Σ  n  ) = (n * (1 + n)) `Div` 2
 type instance Dim (Σp n  ) = (n * (1 + n)) `Div` 2
@@ -202,9 +205,16 @@ instance KnownNat n ⇒ Invol (ℝ  n)
 instance KnownNat n ⇒ Invol (ℝp n) 
 instance KnownNat n ⇒ Invol (I  n) 
 
+simplexProjection ∷ ∀ n. KnownNat n ⇒ Mor (ℝp (n + 1)) (Δ n) 
+simplexProjection = let n = intVal @n
+                        f i j | i < j   =  i/fromIntegral n
+                              | i >= j  = -i/fromIntegral n - 1
+                        Just a = LA.create $ LA'.build (n, n+1) f
+                     in Mor $ linear a
 
 test ∷ Add x ⇒ Mor (x,x) x
-test = fromPoints2 (\x y → add ■ (x,y))
+test = fromPoints2 (\x y → x ◀ add $ y)
+
 
 {-
 
@@ -218,7 +228,6 @@ instance KnownNat n ⇒ Σp n ⊂ Σ n where
 -- instance Δ 1 ≌ I 1 where
 
 {-
-simplexProjection ∷ Mor (ℝp n) (Δ n) 
 -}
 
 {-

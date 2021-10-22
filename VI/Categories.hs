@@ -11,7 +11,7 @@ module VI.Categories ( -- * Categories
                      , Cart'(..), bimap'
                        -- * Pointed/point-free conversion
                      , fromPoints, toPoints, fromPoints2, toPoints2, fromPoints2', toPoints2'
-                     , (▶), (■)
+                     , (▶), (◀)
                        -- * Lawvere theories
                      , Fin'(..), mkFin', Law(..)
                        -- * Auxiliary
@@ -85,6 +85,8 @@ toPoints ∷ Cat ob c ⇒ c x y → (∀ t. c t x → c t y)
 toPoints f = \x → f . x
 
 -- | infix alias for 'toPoints'
+--
+-- usage: @ f ▶ x @
 (▶) ∷ Cat ob c ⇒ c x y → (∀ t. c t x → c t y)
 (▶) = toPoints
 
@@ -94,10 +96,12 @@ toPoints2 ∷ Cart ob c ⇒ c (x,x') y → (∀ t. ob t ⇒ c t x → c t x' →
 toPoints2 f = \x x' → f . (x × x')
 
 -- | infix alias for 'toPoints2'
-(■) ∷ Cart ob c ⇒ c (x,x') y → (∀ t. ob t ⇒ (c t x, c t x') → c t y)
-f ■ (x,x') = toPoints2 f x x'
+--
+-- usage: @ x ◀ f $ y @
+(◀) ∷ (Cart ob c, ob t) ⇒ c t x → c (x,x') y → c t x' → c t y 
+x ◀ f = toPoints2 f x
 
-infixr 0 ■
+infixl 1 ◀
 
 toPoints2' ∷ Cart' c ⇒ c (n + n') m → (∀ k. c k n → c k n' → c k m)
 toPoints2' f = \x x' → f . (x ⊙ x')
