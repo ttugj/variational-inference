@@ -89,6 +89,7 @@ instance (KnownNat n, KnownNat m) ⇒ Floating (Jet n m) where
     asinh          = lift1 @Floating $ \x → (asinh x, recip $ cosh x)
     acosh          = lift1 @Floating $ \x → (asinh x, recip $ sinh x)
     atanh          = lift1 @Floating $ \x → let y = cosh x in (atanh x, y * y)
+    sqrt           = lift1 @Floating $ \x → let y = sqrt x in (y, recip $ 2 * y)
 
 instance Law Jet where
     law ∷ ∀ n m. Fin' n m → Jet n m

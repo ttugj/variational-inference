@@ -31,7 +31,7 @@ module VI.Domains ( -- * Cartesian category of domains
 -- [@Σ n@] Symmetric n × n matrices, identified with R^{n(n+1)/2} using upper triangular part with row-major order.
 -- [@Σp n@] Positive n × n matrices, identified with R^{n(n+1)/2} using upper triangular Cholesky factor, with row-major order and logarithm applied to diagonal elements.
 --
-                    Dim, Domain, Mor
+                    Dim, Domain, Mor(..)
                     -- * Basic domains
                   , ℝ, ℝp, I, Δ, M, Σ, Σp
                     -- * Basic operations
@@ -130,7 +130,7 @@ instance KnownNat n ⇒ ℝp n ⊂ ℝ n where
     emb = Mor $ fromPoints exp
 
 instance KnownNat n ⇒ I n ⊂ ℝp n where
-    emb = Mor $ fromPoints $ \x → let y = exp x in y / (1 + y)
+    emb = Mor $ fromPoints $ \x → x - log (1 + exp x) -- let y = exp x in y / (1 + y)
 
 instance KnownNat n ⇒ Σ n ⊂ M n n where
     emb = let n = intVal @n in Mor . law . mkFin' $ uncurry (ixΣ n) <$> lixM n
@@ -212,6 +212,11 @@ instance (KnownNat n, KnownNat m, m ~ (n + 1)) ⇒ Δ n ⊂ ℝp m where
                                       s = log (linear 1 ▶ exp y)
                                    in y - (diag ▶ s)
 
+instance Δ 1 ≌ I 1 where
+    iso = Mor $ linear (LA.konst (sqrt 2) * LA.eye)
+    osi = Mor $ linear (LA.konst (recip $ sqrt 2) * LA.eye)
+
+
 {-
 
 -- |  
@@ -221,7 +226,6 @@ instance KnownNat n ⇒ Σp n ⊂ Σ n where
     -- we factor Σp n ⊂ Σ n through the space of upper-triangular matrices
  --   emb = mTm . emb . chol
 
--- instance Δ 1 ≌ I 1 where
 
 {-
 -}
