@@ -37,8 +37,8 @@ ixU n i j | i <= j = let k = n - i
                       in Just $ (n*(n+1) - k*(k+1)) `div` 2 + (j-i)
           | otherwise = Nothing
 
-lixM ∷ Int → [(Int,Int)]
-lixM n = [(i,j) | i ← [0..n-1], j ← [0..n-1]]
+lixM ∷ Int → Int → [(Int,Int)]
+lixM n m = [(i,j) | i ← [0..n-1], j ← [0..m-1]]
 
 lixΣ ∷ Int → [(Int,Int)]
 lixΣ n = [(i,j) | i ← [0..n-1], j ← [i..n-1]]

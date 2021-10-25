@@ -28,23 +28,26 @@ module VI.Domains ( -- * Cartesian category of domains
 -- [@I n@] Positive unit cube in R^n, with elementwise logit coordinate.
 -- [@Δ n@] The n-simplex in R^{n+1}, with coordinate p -> log p - 1/(n+1) Σ log p mapping onto the hyperplane orthogonal to (1,...,1) in R^{n+1}.
 -- [@M n m@] All n × m matrices, identified with R^{nm} with row-major order.
+-- [@U n@] Upper-triangular n × n matrices, indentified with R^{(n(n+1)/2} using upper triangular part with row-major order.
 -- [@Σ n@] Symmetric n × n matrices, identified with R^{n(n+1)/2} using upper triangular part with row-major order.
 -- [@Σp n@] Positive n × n matrices, identified with R^{n(n+1)/2} using upper triangular Cholesky factor, with row-major order and logarithm applied to diagonal elements.
 --
                     Dim, Domain, Mor(..)
                     -- * Basic domains
-                  , ℝ, ℝp, I, Δ, M, Σ, Σp
+                  , ℝ, ℝp, I, Δ, M, Σ, Σp, U
                     -- * Basic operations
                   , type(⊂)(..), type(≌)(..)
                   , Add(..), Mul(..), ScaleP(..), Scale(..), Mix(..), Invol(..)
                   , simplexProjection
+                    -- * Matrix operations
+                  , tr
                   ) where
 
 import VI.Categories
 import VI.Jets
 import VI.Util
 
-import Prelude                  (uncurry, ($))
+import Prelude                  (uncurry, flip, ($))
 
 import GHC.TypeLits
 import GHC.TypeLits.Extra
@@ -133,12 +136,12 @@ instance KnownNat n ⇒ I n ⊂ ℝp n where
     emb = Mor $ fromPoints $ \x → x - log (1 + exp x) -- let y = exp x in y / (1 + y)
 
 instance KnownNat n ⇒ Σ n ⊂ M n n where
-    emb = let n = intVal @n in Mor . law . mkFin' $ uncurry (ixΣ n) <$> lixM n
+    emb = let n = intVal @n in Mor . law . mkFin' $ uncurry (ixΣ n) <$> lixM n n
 
 instance KnownNat n ⇒ U n ⊂ M n n where
     emb = let n = intVal @n 
               ι ∷ Jet ((Dim (U n)) + 1) (Dim (M n n))
-              ι = law . mkFin' $ fromMaybe ((n*(n+1)) `div` 2) . uncurry (ixU n) <$> lixM n 
+              ι = law . mkFin' $ fromMaybe ((n*(n+1)) `div` 2) . uncurry (ixU n) <$> lixM n n 
            in Mor $ ι . (id ⊙ 0)
 
 -- | Upper-triangular Cholesky factor
@@ -217,6 +220,17 @@ instance Δ 1 ≌ I 1 where
     osi = Mor $ linear (LA.konst (recip $ sqrt 2) * LA.eye)
 
 
+instance (KnownNat m, KnownNat n) ⇒ Add (M m n) where
+    add = Mor $ fromPoints2' (+)
+
+instance KnownNat n ⇒ Add (Σ n) where
+    add = Mor $ fromPoints2' (+)
+
+tr ∷ ∀ m n. (KnownNat m, KnownNat n) ⇒ Mor (M m n) (M n m) 
+tr = let n = intVal @n
+         m = intVal @m
+      in Mor . law $ mkFin' $ uncurry (flip (ixM n)) <$> lixM n m      
+
 {-
 
 -- |  
@@ -237,9 +251,8 @@ instance KnownNat n ⇒ Mix (I  n) where
 instance KnownNat n ⇒ Mix (Δ  n) where
 -}
 
+
 {-
-instance (KnownNat m, KnownNat n) ⇒ Add (M m n)
-instance KnownNat n ⇒ Add (Σ n)
 instance KnownNat n ⇒ Add (Σp n)
 
 instance KnownNat n ⇒ Mul (M n n)
