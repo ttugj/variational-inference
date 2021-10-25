@@ -7,8 +7,8 @@
 module VI.Util ( 
         -- |
         -- This module collects certain data that actually needs to be computed.
-        -- Ideally, these would all be static.
                  ixM, ixΣ, ixU, lixM, lixΣ, cholU, basisH 
+               , fromLtoR, fromRtoL
                ) where
 
 import Data.Maybe
@@ -66,3 +66,8 @@ basisH = let n      = fromInteger (natVal (Proxy ∷ Proxy n))
              Just a = LA.create a'
           in a
 
+fromLtoR ∷ ∀ m n. (KnownNat m, KnownNat n) ⇒ LA.L m n → LA.R (m * n)
+fromLtoR = fromJust . LA.create . LA'.flatten . LA.extract
+
+fromRtoL ∷ ∀ m n. (KnownNat m, KnownNat n) ⇒ LA.R (m * n) → LA.L m n
+fromRtoL = fromJust . LA.create . LA'.reshape (fromInteger $ natVal (Proxy ∷ Proxy n)) . LA.extract

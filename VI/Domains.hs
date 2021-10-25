@@ -57,6 +57,7 @@ import Control.Applicative
 
 import qualified Numeric.LinearAlgebra.Static as LA
 import qualified Numeric.LinearAlgebra        as LA'
+import qualified Data.Vector.Generic          as G
 
 import GHC.Float 
 import GHC.Real  
@@ -134,7 +135,7 @@ instance KnownNat n ⇒ ℝp n ⊂ ℝ n where
     emb = Mor $ fromPoints exp
 
 instance KnownNat n ⇒ I n ⊂ ℝp n where
-    emb = Mor $ fromPoints $ \x → x - log (1 + exp x) -- let y = exp x in y / (1 + y)
+    emb = Mor $ fromPoints $ \x → x - log (1 + exp x) 
 
 instance KnownNat n ⇒ Σ n ⊂ M n n where
     emb = let n = intVal @n in Mor . law . mkFin' $ uncurry (ixΣ n) <$> lixM n n
@@ -237,14 +238,27 @@ sym ∷ ∀ n. KnownNat n ⇒ Mor (M n n) (Σ n)
 sym = let n = intVal @n
        in Mor . law $ mkFin' $ uncurry (ixM n) <$> lixΣ n
 
-{-
+
+-- a : m n
+-- b : n l
+-- c : m l
+-- c b' , a' c
+
+
 mm ∷ ∀ m n l. (KnownNat m, KnownNat n, KnownNat l) ⇒ Mor (M m n, M n l) (M m l)
 mm = let m = intVal @m
          n = intVal @n
          l = intVal @l
-         f ∷ Int → Int → LA.L (m * n) (n * l) 
-         f i k = 0 -- TODO: ones at (i*n+j), (j*l+k) for j ∈ [0..n-1]
-      in Mor $ bilinear @(m * n) @(n * l) @(m * l) $ [ f i k | (i,k) ← lixM m l ]
+      in Mor $ Jet $ \x → let (af, bf) = LA.split @(m * n) x
+                              a ∷ LA.L m n = fromRtoL af
+                              b ∷ LA.L n l = fromRtoL bf
+                              y ∷ LA.R (m * l) = fromLtoR $ a LA.<> b
+                              g dy = let δ  ∷ LA.L m l= fromRtoL dy 
+                                         d1 ∷ LA.R (m * n) = fromLtoR $ δ LA.<> (LA.tr b)
+                                         d2 ∷ LA.R (n * l) = fromLtoR $ (LA.tr a) LA.<> δ
+                                         dx = d1 LA.# d2
+                                      in dx
+                           in (y, g)
 
 mTm ∷ ∀ m n. (KnownNat m, KnownNat n) ⇒ Mor (M m n) (Σ n)
 mTm = sym . mm @n @m @n . bimap tr id . (id × id)
@@ -255,7 +269,7 @@ instance KnownNat n ⇒ Σp n ⊂ Σ n where
 
 instance KnownNat n ⇒ Mul (M n n) where
     mul = mm
--}
+
 
 {-
 

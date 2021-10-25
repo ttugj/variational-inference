@@ -103,10 +103,10 @@ instance Law Jet where
                                       y' = G.map (x' LA'.!) j
                                       Just y = LA.create y'
                                       g ∷ LA.R m → LA.R n
-                                      g u = let u' = LA.extract u
-                                                v' = G.generate n $ \i → G.sum (G.zipWith (\j0 u0 → bool 0 u0 (j0==i)) j u')
-                                                Just v = LA.create v'
-                                             in v   
+                                      g dy = let u = LA.extract dy 
+                                                 v = G.generate n $ \i → G.sum (G.zipWith (\j0 u0 → bool 0 u0 (j0==i)) j u)
+                                                 Just dx = LA.create v
+                                              in dx 
                                    in (y, g)
 
 point ∷ (KnownNat n, KnownNat m) ⇒ LA.R n → Jet m n
