@@ -40,14 +40,14 @@ module VI.Domains ( -- * Cartesian category of domains
                   , Add(..), Mul(..), ScaleP(..), Scale(..), Mix(..), Invol(..)
                   , simplexProjection
                     -- * Matrix operations
-                  , tr
+                  , tr, sym --, mm, mTm
                   ) where
 
 import VI.Categories
 import VI.Jets
 import VI.Util
 
-import Prelude                  (uncurry, flip, ($))
+import Prelude                  (uncurry, flip, ($), undefined)
 
 import GHC.TypeLits
 import GHC.TypeLits.Extra
@@ -62,6 +62,7 @@ import GHC.Float
 import GHC.Real  
 import GHC.Num   
 import GHC.Classes
+import GHC.Types
 
 -- | Dimension of a domain
 type family Dim (x ∷ k) ∷ Nat
@@ -231,18 +232,32 @@ tr = let n = intVal @n
          m = intVal @m
       in Mor . law $ mkFin' $ uncurry (flip (ixM n)) <$> lixM n m      
 
-{-
 
--- |  
---mTm ∷ KnownNat n ⇒ Mor (M n n) (Σ n)
+sym ∷ ∀ n. KnownNat n ⇒ Mor (M n n) (Σ n)
+sym = let n = intVal @n
+       in Mor . law $ mkFin' $ uncurry (ixM n) <$> lixΣ n
+
+{-
+mm ∷ ∀ m n l. (KnownNat m, KnownNat n, KnownNat l) ⇒ Mor (M m n, M n l) (M m l)
+mm = let m = intVal @m
+         n = intVal @n
+         l = intVal @l
+         f ∷ Int → Int → LA.L (m * n) (n * l) 
+         f i k = 0 -- TODO: ones at (i*n+j), (j*l+k) for j ∈ [0..n-1]
+      in Mor $ bilinear @(m * n) @(n * l) @(m * l) $ [ f i k | (i,k) ← lixM m l ]
+
+mTm ∷ ∀ m n. (KnownNat m, KnownNat n) ⇒ Mor (M m n) (Σ n)
+mTm = sym . mm @n @m @n . bimap tr id . (id × id)
 
 instance KnownNat n ⇒ Σp n ⊂ Σ n where
     -- we factor Σp n ⊂ Σ n through the space of upper-triangular matrices
- --   emb = mTm . emb . chol
+    emb = mTm @n @n  . emb . chol
 
+instance KnownNat n ⇒ Mul (M n n) where
+    mul = mm
+-}
 
 {-
--}
 
 {-
 instance KnownNat n ⇒ Mix (ℝ  n) where
@@ -255,7 +270,6 @@ instance KnownNat n ⇒ Mix (Δ  n) where
 {-
 instance KnownNat n ⇒ Add (Σp n)
 
-instance KnownNat n ⇒ Mul (M n n)
 
 instance (KnownNat m, KnownNat n) ⇒ Scale (M m n)
 instance KnownNat n ⇒ Scale (Σ n)

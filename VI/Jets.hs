@@ -5,18 +5,22 @@
 {-# OPTIONS_GHC -fplugin GHC.TypeLits.Normalise #-}
 
 module VI.Jets ( Jet(..)
-               , point, linear, affine
+               , point, linear, affine --, bilinear1, bilinear
                ) where
 
 import VI.Categories
 
 import Prelude                  (uncurry, ($), const)
 import Data.Maybe
+import Data.Bool 
 import Data.Functor
+import Control.Applicative
 import GHC.TypeLits
 import GHC.TypeLits.Extra
 import qualified Numeric.LinearAlgebra.Static as LA
 import qualified Numeric.LinearAlgebra as LA'
+import qualified Data.List as L
+import GHC.Classes
 import GHC.Float 
 import GHC.Real  
 import GHC.Num   
@@ -24,7 +28,7 @@ import GHC.Num
 import qualified Data.Vector.Generic as G
 import qualified Data.Vector.Generic.Mutable as GM
 
--- | 1-jet of a map R^n -> R^m
+-- | 1-jet of a map R^n -> R^m, as value & transpose Jacobian
 --
 -- Note the associated instances.
 --
@@ -35,46 +39,46 @@ import qualified Data.Vector.Generic.Mutable as GM
 --   test = fromPoints2' $ \\x y → (exp $ x * y) ⊙ ( sin (x * pi) / exp y ) 
 -- @  
 data Jet (n ∷ Nat) (m ∷ Nat) where
-    Jet ∷ (KnownNat n, KnownNat m) ⇒ (LA.R n → (LA.R m, LA.L m n)) → Jet n m
+    Jet ∷ (KnownNat n, KnownNat m) ⇒ (LA.R n → (LA.R m, LA.R m → LA.R n)) → Jet n m
 
 instance Cat KnownNat Jet where
-    id = Jet $ \x → (x, LA.eye)
+    id = Jet $ \x → (x, id)
     Jet φ . Jet ψ = Jet $ \x → let (y, dψ) = ψ x
                                    (z, dφ) = φ y
-                                in (z, dφ LA.<> dψ)
+                                in (z, dψ . dφ)
 
 instance Cart' Jet where
     pr1' ∷ ∀ n m. (KnownNat n, KnownNat m) ⇒ Jet (n + m) n
-    pr1' = Jet $ \x → (pr1 $ LA.split @n x, LA.eye LA.||| 0)
+    pr1' = Jet $ \x → (pr1 $ LA.split @n x, (LA.# 0))
     pr2' ∷ ∀ n m. (KnownNat n, KnownNat m) ⇒ Jet (n + m) m
-    pr2' = Jet $ \x → (pr2 $ LA.split @n x, 0 LA.||| LA.eye)
+    pr2' = Jet $ \x → (pr2 $ LA.split @n x, (0 LA.#))
     Jet φ ⊙ Jet ψ = Jet $ \x → let (y, dφ) = φ x
                                    (z, dψ) = ψ x
-                                in (y LA.# z, dφ LA.=== dψ)
+                                in (y LA.# z, uncurry (+) . bimap dφ dψ . LA.split)
 
 lift1 ∷ ∀ c n m. (KnownNat n, KnownNat m, c (LA.R m)) ⇒ (∀ a. c a ⇒ (a → (a, a))) → Jet n m → Jet n m
 lift1 f (Jet φ) = Jet $ \x → let (y, dφ) = φ x
                                  (z, df) = f y 
-                              in (z, LA.diag df LA.<> dφ)     
+                              in (z, dφ . (df *))     
 
 instance (KnownNat n, KnownNat m) ⇒ Num (Jet n m) where
     Jet φ + Jet ψ  = Jet $ \x → let (y, dφ) = φ x
                                     (z, dψ) = ψ x
-                                 in (y + z, dφ + dψ)  
+                                 in (y + z, (+) <$> dφ <*> dψ)  
     Jet φ * Jet ψ  = Jet $ \x → let (y, dφ) = φ x
                                     (z, dψ) = ψ x
-                                 in (y * z, LA.diag z LA.<> dφ + LA.diag y LA.<> dψ)
-    fromInteger k  = Jet $ \_ → (fromInteger k, 0) 
+                                 in (y * z, (+) <$> dφ . (z *) <*> dψ . (y *))
+    fromInteger k  = Jet $ \_ → (fromInteger k, pure 0) 
     abs            = lift1 @Num $ \x → (abs x, signum x)
-    signum         = lift1 @Num $ \x → (signum x,  0)
+    signum         = lift1 @Num $ \x → (signum x, 0)
     negate         = lift1 @Num $ \x → (negate x, -1)
 
 instance (KnownNat n, KnownNat m) ⇒ Fractional (Jet n m) where
-    fromRational r = Jet $ \_ → (fromRational r, 0)
+    fromRational r = Jet $ \_ → (fromRational r, pure 0)
     recip          = lift1 @Fractional $ \x → (recip x, negate $ x * x)
 
 instance (KnownNat n, KnownNat m) ⇒ Floating (Jet n m) where
-    pi             = Jet $ \_ → (pi, 0)
+    pi             = Jet $ \_ → (pi, pure 0)
     exp            = lift1 @Floating $ \x → let y = exp x in (y, y) 
     log            = lift1 @Floating $ \x → (log x, recip x)
     sin            = lift1 @Floating $ \x → (sin x, cos x)
@@ -95,19 +99,21 @@ instance Law Jet where
     law ∷ ∀ n m. Fin' n m → Jet n m
     law (Fin' j) = let m = intVal @m
                        n = intVal @n   
-                       mkRow i = G.modify (\v → GM.write v i 1) (G.replicate n 0)
-                       d' = LA'.fromRows $ mkRow <$> G.toList j
-                       Just d = LA.create d'
                     in Jet $ \x → let x' = LA.extract x
                                       y' = G.map (x' LA'.!) j
                                       Just y = LA.create y'
-                                   in (y,d) 
+                                      g ∷ LA.R m → LA.R n
+                                      g u = let u' = LA.extract u
+                                                v' = G.generate n $ \i → G.sum (G.zipWith (\j0 u0 → bool 0 u0 (j0==i)) j u')
+                                                Just v = LA.create v'
+                                             in v   
+                                   in (y, g)
 
 point ∷ (KnownNat n, KnownNat m) ⇒ LA.R n → Jet m n
-point x = Jet $ \_ → (x, 0)
+point x = Jet $ \_ → (x, pure 0)
 
 linear ∷ (KnownNat n, KnownNat m) ⇒ LA.L m n → Jet n m
-linear a = Jet $ \x → (a LA.#> x, a)
+linear a = Jet $ \x → (a LA.#> x, (LA.tr a LA.#>))
 
 -- | This is a basic example of pointed style:
 --
@@ -117,3 +123,20 @@ linear a = Jet $ \x → (a LA.#> x, a)
 affine ∷ (KnownNat n, KnownNat m) ⇒ LA.R m → LA.L m n → Jet n m
 affine b a = fromPoints $ \x → point b + linear a ▶ x
 
+{-
+bilinear1 ∷ ∀ m n. (KnownNat n, KnownNat m) ⇒ LA.L m n → Jet (m + n) 1
+bilinear1 b = Jet $ \x → let (x1,x2) = LA.split @m x
+                             bx2     = b LA.#> x2
+                             x1b     = LA.tr b LA.#> x1
+                             r       = LA.row x1 LA.#> bx2
+                          in (r, ((LA.row $ bx2 LA.# x1b) LA.#>)) 
+
+bilinear ∷ ∀ m n l. (KnownNat n, KnownNat m, KnownNat l) ⇒ [LA.L m n] → Jet (m + n) l
+bilinear bs = Jet $ \x → let (x1,x2) = LA.split @m x
+                             bx2'    = (LA.#> x2) <$> bs
+                             x1b'    = ((LA.#> x1) . LA.tr) <$> bs
+                             r'      = (x1 LA.<.>) <$> bx2'
+                             r       = LA.vector r'
+                             Just d  = LA.create $ LA'.fromRows $ LA.extract <$> L.zipWith (LA.#) bx2' x1b'
+                          in (r, d)   
+-}

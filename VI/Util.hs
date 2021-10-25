@@ -49,11 +49,11 @@ diagU n = L.unfoldr go (0,n)
                go (i, 0) = Nothing
                go (i, k) = Just (i, (i+k,k-1))
 
-cholU ∷ ∀ n m. (KnownNat n, KnownNat m,  m ~ ((n * (1 + n)) `Div` 2)) ⇒ LA.R m → (LA.R m, LA.L m m)
+cholU ∷ ∀ n m. (KnownNat n, KnownNat m,  m ~ ((n * (1 + n)) `Div` 2)) ⇒ LA.R m → (LA.R m, LA.R m → LA.R m)
 cholU = let n       = fromInteger (natVal (Proxy ∷ Proxy n))
             js      = diagU n
             f v y   = fromJust . LA.create $ G.modify (\mv → forM_ js (\j → GM.write mv j (y G.! j))) v
-         in \x → let y = LA.extract (exp x) in (f (LA.extract x) y, LA.diag $ f (G.replicate n 1) y)
+         in \x → let y = LA.extract (exp x) in (f (LA.extract x) y, (f (G.replicate n 1) y *))
 
 basisH ∷ ∀ n. KnownNat n ⇒ LA.L (n + 1) n 
 basisH = let n      = fromInteger (natVal (Proxy ∷ Proxy n))
