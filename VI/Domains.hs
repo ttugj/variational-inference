@@ -87,6 +87,8 @@ instance Cart Domain Mor where
     pr2 ∷ ∀ x y. (Domain x, Domain y, Domain (x,y)) ⇒ Mor (x,y) y
     pr2 = Mor pr2' 
     Mor φ × Mor ψ = Mor (φ ⊙ ψ)
+    asR = Mor id
+    asL = Mor id
 
 data ℝ  (n ∷ Nat)
 data ℝp (n ∷ Nat)
@@ -264,8 +266,7 @@ mTm ∷ ∀ m n. (KnownNat m, KnownNat n) ⇒ Mor (M m n) (Σ n)
 mTm = sym . mm @n @m @n . bimap tr id . (id × id)
 
 instance KnownNat n ⇒ Σp n ⊂ Σ n where
-    -- we factor Σp n ⊂ Σ n through the space of upper-triangular matrices
-    emb = mTm @n @n  . emb . chol
+    emb = mTm @n @n  . emb . chol    -- we factor Σp n ⊂ Σ n through the space of upper-triangular matrices
 
 instance KnownNat n ⇒ Mul (M n n) where
     mul = mm

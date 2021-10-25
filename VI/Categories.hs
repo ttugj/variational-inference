@@ -52,11 +52,15 @@ class Cat ob c ⇒ Cart ob c where
     pr1 ∷ (ob x, ob y) ⇒ c (x,y) x
     pr2 ∷ (ob x, ob y) ⇒ c (x,y) y
     (×) ∷ c x y → c x y' → c x (y,y')
+    asR ∷ (ob x, ob y, ob z) ⇒ c ((x,y),z) (x,(y,z))
+    asL ∷ (ob x, ob y, ob z) ⇒ c (x,(y,z)) ((x,y),z)
 
 instance Cart Unconstrained (->) where
     pr1 = fst
     pr2 = snd
     f × g = (,) <$> f <*> g
+    asR ((x,y),z) = (x,(y,z))
+    asL (x,(y,z)) = ((x,y),z)
 
 bimap ∷ (Cart ob c, ob x, ob x') 
       ⇒ c x y → c x' y' → c (x,x') (y,y')
