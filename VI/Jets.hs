@@ -5,7 +5,7 @@
 {-# OPTIONS_GHC -fplugin GHC.TypeLits.Normalise #-}
 
 module VI.Jets ( Jet(..)
-               , point, linear, affine --, bilinear1, bilinear
+               , point, linear, affine 
                ) where
 
 import VI.Categories

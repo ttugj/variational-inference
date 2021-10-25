@@ -40,7 +40,7 @@ module VI.Domains ( -- * Cartesian category of domains
                   , Add(..), Mul(..), ScaleP(..), Scale(..), Mix(..), Invol(..)
                   , simplexProjection
                     -- * Matrix operations
-                  , tr, sym --, mm, mTm
+                  , tr, sym, mm, mTm
                   ) where
 
 import VI.Categories
