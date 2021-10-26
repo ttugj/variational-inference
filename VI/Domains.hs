@@ -162,7 +162,7 @@ class Domain x ⇒ Mul x where
 
 -- | Convex domains
 class Domain x ⇒ Mix x where
-    mix ∷ Mor (I 1, x, x) x
+    mix ∷ Mor (I 1, (x, x)) x
 
 -- | Conical domains
 class Domain x ⇒ ScaleP x where
@@ -241,12 +241,6 @@ sym = let n = intVal @n
        in Mor . law $ mkFin' $ uncurry (ixM n) <$> lixΣ n
 
 
--- a : m n
--- b : n l
--- c : m l
--- c b' , a' c
-
-
 mm ∷ ∀ m n l. (KnownNat m, KnownNat n, KnownNat l) ⇒ Mor (M m n, M n l) (M m l)
 mm = let m = intVal @m
          n = intVal @n
@@ -271,11 +265,16 @@ instance KnownNat n ⇒ Σp n ⊂ Σ n where
 instance KnownNat n ⇒ Mul (M n n) where
     mul = mm
 
+instance (ScaleP x, Add x) ⇒ Mix x where
+    mix = fromPoints3 $ \c x x' → let k  = emb ▶ c
+                                      k' = emb ▶ invol ▶ c
+                                      y  = k  ◀ scalep $ x
+                                      y' = k' ◀ scalep $ x'
+                                   in y ◀ add $ y'
 
 {-
 
 {-
-instance KnownNat n ⇒ Mix (ℝ  n) where
 instance KnownNat n ⇒ Mix (ℝp n) where
 instance KnownNat n ⇒ Mix (I  n) where
 instance KnownNat n ⇒ Mix (Δ  n) where
