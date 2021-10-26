@@ -32,6 +32,8 @@ module VI.Domains ( -- * Cartesian category of domains
 -- [@Σ n@] Symmetric n × n matrices, identified with R^{n(n+1)/2} using upper triangular part.
 -- [@Σp n@] Positive n × n matrices, identified with R^{n(n+1)/2} using upper triangular Cholesky factor, with logarithm applied to diagonal elements.
 --
+-- The latter three require 1 <= n to make KnownNat inference simpler
+--
                     Dim, Domain, Mor(..)
                     -- * Basic domains
                   , ℝ, ℝp, I, Δ, M, Σ, Σp, U
@@ -104,9 +106,9 @@ type instance Dim (ℝp n  ) = n
 type instance Dim (I  n  ) = n
 type instance Dim (Δ  n  ) = n
 type instance Dim (M  m n) = m * n
-type instance Dim (Σ  n  ) = (n * (1 + n)) `Div` 2
-type instance Dim (Σp n  ) = (n * (1 + n)) `Div` 2
-type instance Dim (U  n  ) = (n * (1 + n)) `Div` 2
+type instance Dim (Σ  n  ) = n + ((n * (n - 1)) `Div` 2)
+type instance Dim (Σp n  ) = n + ((n * (n - 1)) `Div` 2)
+type instance Dim (U  n  ) = n + ((n * (n - 1)) `Div` 2)
 
 -- | Canonical isomorphism
 class (Domain x, Domain y, Dim x ~ Dim y) ⇒ x ≌ y where
@@ -139,18 +141,18 @@ instance KnownNat n ⇒ ℝp n ⊂ ℝ n where
 instance KnownNat n ⇒ I n ⊂ ℝp n where
     emb = Mor $ fromPoints $ \x → x - log (1 + exp x) 
 
-instance KnownNat n ⇒ Σ n ⊂ M n n where
+instance (KnownNat n, 1 <= n) ⇒ Σ n ⊂ M n n where
     emb = let n = intVal @n in Mor . law . mkFin' $ uncurry (ixΣ n) <$> lixM n n
 
-instance KnownNat n ⇒ U n ⊂ M n n where
+instance (KnownNat n, 1 <= n) ⇒ U n ⊂ M n n where
     emb = let n = intVal @n 
               ι ∷ Jet ((Dim (U n)) + 1) (Dim (M n n))
               ι = law . mkFin' $ fromMaybe ((n*(n+1)) `div` 2) . uncurry (ixU n) <$> lixM n n 
            in Mor $ ι . (id ⊙ 0)
 
 -- | Upper-triangular Cholesky factor
-chol ∷ KnownNat n ⇒ Mor (Σp n) (U n)
-chol = Mor . Jet $ cholU 
+chol ∷ ∀ n. (KnownNat n, 1 <= n) ⇒ Mor (Σp n) (U n)
+chol = Mor $ bimap' @Jet @n @((n * (n - 1)) `Div` 2) (fromPoints exp) id
 
 -- | Additive domains 
 class Domain x ⇒ Add x where
@@ -227,10 +229,10 @@ instance Δ 1 ≌ I 1 where
 instance (KnownNat m, KnownNat n) ⇒ Add (M m n) where
     add = Mor $ fromPoints2' (+)
 
-instance KnownNat n ⇒ Add (Σ n) where
+instance (KnownNat n, 1 <= n) ⇒ Add (Σ n) where
     add = Mor $ fromPoints2' (+)
 
-instance KnownNat n ⇒ Add (U n) where
+instance (KnownNat n, 1 <= n) ⇒ Add (U n) where
     add = Mor $ fromPoints2' (+)
 
 tr ∷ ∀ m n. (KnownNat m, KnownNat n) ⇒ Mor (M m n) (M n m) 
@@ -239,7 +241,7 @@ tr = let n = intVal @n
       in Mor . law $ mkFin' $ uncurry (flip (ixM n)) <$> lixM n m      
 
 
-sym ∷ ∀ n. KnownNat n ⇒ Mor (M n n) (Σ n)
+sym ∷ ∀ n. (KnownNat n, 1 <= n) ⇒ Mor (M n n) (Σ n)
 sym = let n = intVal @n
        in Mor . law $ mkFin' $ uncurry (ixM n) <$> lixΣ n
 
@@ -259,22 +261,22 @@ mm = let m = intVal @m
                                       in dx
                            in (y, g)
 
-mTm ∷ ∀ m n. (KnownNat m, KnownNat n) ⇒ Mor (M m n) (Σ n)
+mTm ∷ ∀ m n. (KnownNat m, KnownNat n, 1 <= n) ⇒ Mor (M m n) (Σ n)
 mTm = sym . mm @n @m @n . bimap tr id . (id × id)
 
-instance KnownNat n ⇒ Σp n ⊂ Σ n where
+instance (KnownNat n, 1 <= n) ⇒ Σp n ⊂ Σ n where
     emb = mTm @n @n  . emb . chol    -- we factor Σp n ⊂ Σ n through the space of upper-triangular matrices
 
-instance KnownNat n ⇒ Mul (M n n) where
+instance (KnownNat n, 1 <= n) ⇒ Mul (M n n) where
     mul = mm
 
 instance (KnownNat m, KnownNat n) ⇒ Scale (M m n) where
     scale  = Mor $ fromPoints2' $ \c x → (diag ▶ c) * x
 
-instance KnownNat n ⇒ Scale (Σ n) where
+instance (KnownNat n, 1 <= n) ⇒ Scale (Σ n) where
     scale  = Mor $ fromPoints2' $ \c x → (diag ▶ c) * x
 
-instance KnownNat n ⇒ Scale (U n) where
+instance (KnownNat n, 1 <= n) ⇒ Scale (U n) where
     scale  = Mor $ fromPoints2' $ \c x → (diag ▶ c) * x
 
 instance (ScaleP x, Add x) ⇒ Mix x where

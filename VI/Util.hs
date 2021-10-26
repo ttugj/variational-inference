@@ -7,7 +7,7 @@
 module VI.Util ( 
         -- |
         -- This module collects certain data that actually needs to be computed.
-                 ixM, ixΣ, ixU, lixM, lixΣ, cholU, basisH 
+                 ixM, ixΣ, ixU, lixM, lixΣ, basisH 
                , fromLtoR, fromRtoL
                ) where
 
@@ -31,16 +31,6 @@ ixΣ ∷ Int → Int → Int → Int
 ixΣ n i j | i <= j    = fromJust $ ixU n i j
           | otherwise = fromJust $ ixU n j i
 
-{-
-
-0   n   2n-1    3n-2    4n-3
-    1   n+1     2n      3n-1 
-        2       n+2     2n+1 
-
-...
-
--}
-
 ixU ∷ Int → Int → Int → Maybe Int
 ixU n i j | i <= j      = let d = j-i
                               k = n-d
@@ -52,15 +42,6 @@ lixM n m = [(i,j) | i ← [0..n-1], j ← [0..m-1]]
 
 lixΣ ∷ Int → [(Int,Int)]
 lixΣ n = [(e+d,e) | d ← [0..n-1], e ← [0..n-1-d]]
-
-diagU ∷ Int → [Int]
-diagU n = [0..n-1]
-
-cholU ∷ ∀ n m. (KnownNat n, KnownNat m,  m ~ ((n * (1 + n)) `Div` 2)) ⇒ LA.R m → (LA.R m, LA.R m → LA.R m)
-cholU = let n       = fromInteger (natVal (Proxy ∷ Proxy n))
-            js      = diagU n
-            f v y   = fromJust . LA.create $ G.modify (\mv → forM_ js (\j → GM.write mv j (y G.! j))) v
-         in \x → let y = LA.extract (exp x) in (f (LA.extract x) y, (f (G.replicate n 1) y *))
 
 basisH ∷ ∀ n. KnownNat n ⇒ LA.L (n + 1) n 
 basisH = let n      = fromInteger (natVal (Proxy ∷ Proxy n))

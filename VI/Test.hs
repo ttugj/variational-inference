@@ -3,6 +3,7 @@
 {-# OPTIONS_GHC -fplugin GHC.TypeLits.Extra.Solver #-}
 {-# OPTIONS_GHC -fplugin GHC.TypeLits.KnownNat.Solver #-}
 {-# OPTIONS_GHC -fplugin GHC.TypeLits.Normalise #-}
+{-# OPTIONS_GHC -fconstraint-solver-iterations=10 #-}
 
 module VI.Test ( -- * General classes
                  Test(..), TestM(..), doTest'
@@ -99,12 +100,12 @@ simplexIntervalT = (iso . f . iso, emb) where
 trInvolutiveT ∷ (KnownNat m, KnownNat n) ⇒ Pair (M m n) (M m n)
 trInvolutiveT = (tr . tr, id)
 
-symRetractionT ∷ KnownNat n ⇒ Pair (Σ n) (Σ n)
+symRetractionT ∷ (KnownNat n, 1 <= n) ⇒ Pair (Σ n) (Σ n)
 symRetractionT = (sym . emb, id)
 
 mmAssociativeT ∷ (KnownNat n, KnownNat m, KnownNat l, KnownNat k) ⇒ Pair ((M n m, M m l), M l k) (M n k)
 mmAssociativeT = (mm . (bimap mm id), mm . (bimap id mm) . asR)
 
-mTmT ∷ (KnownNat m, KnownNat n) ⇒ Pair (M m n) (M n n)
+mTmT ∷ (KnownNat m, KnownNat n, 1 <= n) ⇒ Pair (M m n) (M n n)
 mTmT = (emb . mTm, mm . (bimap tr id) . (id × id))
 

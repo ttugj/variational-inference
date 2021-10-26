@@ -72,7 +72,7 @@ class Cat KnownNat (c ∷ Nat → Nat → Type) ⇒ Cart' c where
     pr2' ∷ (KnownNat n, KnownNat m) ⇒ c (n + m) m
     (⊙)  ∷ c n m → c n m' → c n (m + m')
 
-bimap' ∷ (Cart' c, KnownNat x, KnownNat x')
+bimap' ∷ ∀ c x x' y y'. (Cart' c, KnownNat x, KnownNat x')
        ⇒ c x y → c x' y' → c (x + x') (y + y')
 bimap' f g = (f . pr1') ⊙ (g . pr2')
 
