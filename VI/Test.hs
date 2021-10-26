@@ -10,7 +10,11 @@ module VI.Test ( -- * General classes
                , withTolerance
                  -- * Assorted tests
                  -- ** Domains
-               , Pair, simplexRetractionT, simplexIntervalT, trInvolutiveT, symRetractionT, mmAssociativeT
+               , Pair
+               , simplexRetractionT, simplexIntervalT
+               , trInvolutiveT, symRetractionT
+               , mmAssociativeT, mTmT
+               , mixSimplexIntervalT
                ) where
 
 import VI.Categories
@@ -109,7 +113,5 @@ mmAssociativeT = (mm . (bimap mm id), mm . (bimap id mm) . asR)
 mTmT ∷ (KnownNat m, KnownNat n, 1 <= n) ⇒ Pair (M m n) (M n n)
 mTmT = (emb . mTm, mm . (bimap tr id) . (id × id))
 
-mixSimplexIntervalT ∷ Pair (I 1, (Δ 1, Δ 1)) (Δ 1) 
-mixSimplexIntervalT = (mix, osi . mix @(I 1) . bimap id (bimap iso iso))
-
-
+mixSimplexIntervalT ∷ Pair (I 1, (Δ 1, Δ 1)) (ℝp 1) 
+mixSimplexIntervalT = (pr1 . osi @(ℝp 1, ℝp 1) . emb @(Δ 1) @(ℝp 2) . mix, emb . mix @(I 1) . bimap id (bimap iso iso))

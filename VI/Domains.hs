@@ -32,11 +32,12 @@ module VI.Domains ( -- * Cartesian category of domains
 -- [@Σ n@] Symmetric n × n matrices, identified with R^{n(n+1)/2} using upper triangular part.
 -- [@Σp n@] Positive n × n matrices, identified with R^{n(n+1)/2} using upper triangular Cholesky factor, with logarithm applied to diagonal elements.
 --
--- The latter three require 1 <= n to make KnownNat inference simpler
+-- The latter three require 1 <= n to make KnownNat inference simpler. 
 --
                     Dim, Domain, Mor(..)
                     -- * Basic domains
-                  , ℝ, ℝp, I, Δ, M, Σ, Σp, U
+                  , Pt, ℝ, ℝp, I, Δ, M, Σ, Σp, U
+                  , Concrete(..)
                     -- * Basic operations
                   , type(⊂)(..), type(≌)(..)
                   , Add(..), Mul(..), ScaleP(..), Scale(..), Mix(..), Invol(..)
@@ -92,6 +93,7 @@ instance Cart Domain Mor where
     asR = Mor id
     asL = Mor id
 
+data Pt
 data ℝ  (n ∷ Nat)
 data ℝp (n ∷ Nat)
 data I  (n ∷ Nat)
@@ -101,6 +103,7 @@ data Σ  (n ∷ Nat)
 data Σp (n ∷ Nat)
 data U  (n ∷ Nat)
 
+type instance Dim Pt       = 0
 type instance Dim (ℝ  n  ) = n
 type instance Dim (ℝp n  ) = n
 type instance Dim (I  n  ) = n
@@ -109,6 +112,15 @@ type instance Dim (M  m n) = m * n
 type instance Dim (Σ  n  ) = n + ((n * (n - 1)) `Div` 2)
 type instance Dim (Σp n  ) = n + ((n * (n - 1)) `Div` 2)
 type instance Dim (U  n  ) = n + ((n * (n - 1)) `Div` 2)
+
+-- | Concrete presentation
+class (Domain x, KnownNat n) ⇒ Concrete n x where
+    toConcrete      ∷ Mor x (ℝ n)    
+    fromConcrete    ∷ LA.R n → Mor Pt x
+
+instance KnownNat n ⇒ Concrete n (ℝ n) where
+    toConcrete      = id
+    fromConcrete x  = Mor $ point x
 
 -- | Canonical isomorphism
 class (Domain x, Domain y, Dim x ~ Dim y) ⇒ x ≌ y where
@@ -153,6 +165,18 @@ instance (KnownNat n, 1 <= n) ⇒ U n ⊂ M n n where
 -- | Upper-triangular Cholesky factor
 chol ∷ ∀ n. (KnownNat n, 1 <= n) ⇒ Mor (Σp n) (U n)
 chol = Mor $ bimap' @Jet @n @((n * (n - 1)) `Div` 2) (fromPoints exp) id
+
+instance KnownNat n ⇒ Concrete n (ℝp n) where
+    toConcrete      = emb
+    fromConcrete x  = Mor $ point (log x)
+
+instance KnownNat n ⇒ Concrete n (I n) where
+    toConcrete      = emb @(ℝp n) . emb
+    fromConcrete x  = Mor $ point (log $ x / (1-x)) 
+
+instance (KnownNat n, KnownNat m, m ~ n + 1) ⇒ Concrete m (Δ n) where
+    toConcrete      = emb @(ℝp m) . emb
+    fromConcrete x  = Mor $ point (LA.tr (basisH @n) LA.#> log x)
 
 -- | Additive domains 
 class Domain x ⇒ Add x where
@@ -282,15 +306,15 @@ instance (KnownNat n, 1 <= n) ⇒ Scale (U n) where
 instance {-# OVERLAPPABLE #-} (ScaleP x, Add x) ⇒ Mix x where
     mix = fromPoints3 $ \c x x' → let k  = emb ▶ c
                                       k' = emb ▶ invol ▶ c
-                                      y  = k  ◀ scalep $ x
-                                      y' = k' ◀ scalep $ x'
+                                      y  = k  ◀ scalep $ x'
+                                      y' = k' ◀ scalep $ x
                                    in y ◀ add $ y'
 
 instance KnownNat n ⇒ Mix (Δ  n) where
     mix = fromPoints3 $ \c x x' → let k  = emb ▶ c
                                       k' = emb ▶ invol ▶ c
-                                      y  = k  ◀ scalep $ emb ▶ x
-                                      y' = k' ◀ scalep $ emb ▶ x'
+                                      y  = k  ◀ scalep $ emb ▶ x'
+                                      y' = k' ◀ scalep $ emb ▶ x
                                    in simplexProjection ▶ (y ◀ add $ y')
 
 instance KnownNat n ⇒ Mix (I  n) where
@@ -298,7 +322,7 @@ instance KnownNat n ⇒ Mix (I  n) where
                                              d   = e (diag ▶ c)
                                              y   = e x
                                              y'  = e x'
-                                             y'' = d * y + (1 - d) * y'
+                                             y'' = (1-d) * y + d * y'
                                           in log $ y'' / (1 - y'')
          
 {-
