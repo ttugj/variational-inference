@@ -286,12 +286,21 @@ instance (ScaleP x, Add x) ⇒ Mix x where
                                       y' = k' ◀ scalep $ x'
                                    in y ◀ add $ y'
 
-{-
-
-{-
-instance KnownNat n ⇒ Mix (I  n) where
 instance KnownNat n ⇒ Mix (Δ  n) where
--}
+    mix = fromPoints3 $ \c x x' → let k  = emb ▶ c
+                                      k' = emb ▶ invol ▶ c
+                                      y  = k  ◀ scalep $ emb ▶ x
+                                      y' = k' ◀ scalep $ emb ▶ x'
+                                   in simplexProjection ▶ (y ◀ add $ y')
+
+instance KnownNat n ⇒ Mix (I  n) where
+    mix = Mor $ fromPoints3' $ \c x x' → let ec  = diag ▶ (exp c)
+                                             ex  = exp x
+                                             ex' = exp x'
+                                             z   = ((ec * ex) / (1 + ex) + ex' / (1 + ex')) / (1 + ec)
+                                          in log $ z / (1 - z)
+         
+{-
 
 {-
 instance KnownNat n ⇒ Add (Σp n)

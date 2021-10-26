@@ -10,7 +10,7 @@ module VI.Categories ( -- * Categories
                      , Cart(..), bimap
                      , Cart'(..), bimap'
                        -- * Pointed/point-free conversion
-                     , fromPoints, toPoints, fromPoints2, toPoints2, fromPoints2', toPoints2', fromPoints3
+                     , fromPoints, toPoints, fromPoints2, toPoints2, fromPoints2', toPoints2', fromPoints3, fromPoints3'
                      , (▶), (◀)
                        -- * Lawvere theories
                      , Fin'(..), mkFin', Law(..), diag
@@ -91,6 +91,10 @@ fromPoints3 f = f pr1 (pr1 . pr2) (pr2 . pr2)
 fromPoints2' ∷ (Cart' c, KnownNat n, KnownNat n', KnownNat (n + n'), KnownNat m) 
              ⇒ (∀ k. KnownNat k ⇒ c k n → c k n' → c k m) → c (n + n') m
 fromPoints2' f = f pr1' pr2'
+
+fromPoints3' ∷ ∀ c n n' n'' m. (Cart' c, KnownNat n, KnownNat n', KnownNat n'', KnownNat (n + n' + n''), KnownNat m)
+            ⇒ (∀ k. KnownNat k ⇒ c k n → c k n' → c k n'' → c k m) → c (n + n' + n'') m
+fromPoints3' f = f (pr1' @c @n @(n' + n'')) (pr1' @c @n' @n'' . pr2') (pr2' @c @n @n'' . pr2')
 
 toPoints ∷ Cat ob c ⇒ c x y → (∀ t. c t x → c t y)
 toPoints f = \x → f . x
