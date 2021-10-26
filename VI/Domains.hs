@@ -28,9 +28,9 @@ module VI.Domains ( -- * Cartesian category of domains
 -- [@I n@] Positive unit cube in R^n, with elementwise logit coordinate.
 -- [@Δ n@] The n-simplex in R^{n+1}, with coordinate p -> log p - 1/(n+1) Σ log p mapping onto the hyperplane orthogonal to (1,...,1) in R^{n+1}.
 -- [@M n m@] All n × m matrices, identified with R^{nm} with row-major order.
--- [@U n@] Upper-triangular n × n matrices, indentified with R^{(n(n+1)/2} using upper triangular part with row-major order.
--- [@Σ n@] Symmetric n × n matrices, identified with R^{n(n+1)/2} using upper triangular part with row-major order.
--- [@Σp n@] Positive n × n matrices, identified with R^{n(n+1)/2} using upper triangular Cholesky factor, with row-major order and logarithm applied to diagonal elements.
+-- [@U n@] Upper-triangular n × n matrices, indentified with R^{(n(n+1)/2} with diag-major order.
+-- [@Σ n@] Symmetric n × n matrices, identified with R^{n(n+1)/2} using upper triangular part.
+-- [@Σp n@] Positive n × n matrices, identified with R^{n(n+1)/2} using upper triangular Cholesky factor, with logarithm applied to diagonal elements.
 --
                     Dim, Domain, Mor(..)
                     -- * Basic domains

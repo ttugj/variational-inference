@@ -28,26 +28,33 @@ ixM ∷ Int → Int → Int → Int
 ixM n i j = n*i + j
 
 ixΣ ∷ Int → Int → Int → Int
-ixΣ n i j | i <= j = let k = n - i
-                      in (n*(n+1) - k*(k+1)) `div` 2 + (j-i)
-          | otherwise = ixΣ n j i
+ixΣ n i j | i <= j    = fromJust $ ixU n i j
+          | otherwise = fromJust $ ixU n j i
+
+{-
+
+0   n   2n-1    3n-2    4n-3
+    1   n+1     2n      3n-1 
+        2       n+2     2n+1 
+
+...
+
+-}
 
 ixU ∷ Int → Int → Int → Maybe Int
-ixU n i j | i <= j = let k = n - i
-                      in Just $ (n*(n+1) - k*(k+1)) `div` 2 + (j-i)
-          | otherwise = Nothing
+ixU n i j | i <= j      = let d = j-i
+                              k = n-d
+                           in Just $ n*(n+1) `div` 2 - k*(k+1) `div` 2 + i 
+          | otherwise   = Nothing
 
 lixM ∷ Int → Int → [(Int,Int)]
 lixM n m = [(i,j) | i ← [0..n-1], j ← [0..m-1]]
 
 lixΣ ∷ Int → [(Int,Int)]
-lixΣ n = [(i,j) | i ← [0..n-1], j ← [i..n-1]]
+lixΣ n = [(e+d,e) | d ← [0..n-1], e ← [0..n-1-d]]
 
 diagU ∷ Int → [Int]
-diagU n = L.unfoldr go (0,n)
-            where
-               go (i, 0) = Nothing
-               go (i, k) = Just (i, (i+k,k-1))
+diagU n = [0..n-1]
 
 cholU ∷ ∀ n m. (KnownNat n, KnownNat m,  m ~ ((n * (1 + n)) `Div` 2)) ⇒ LA.R m → (LA.R m, LA.R m → LA.R m)
 cholU = let n       = fromInteger (natVal (Proxy ∷ Proxy n))

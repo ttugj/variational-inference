@@ -123,20 +123,3 @@ linear a = Jet $ \x → (a LA.#> x, (LA.tr a LA.#>))
 affine ∷ (KnownNat n, KnownNat m) ⇒ LA.R m → LA.L m n → Jet n m
 affine b a = fromPoints $ \x → point b + linear a ▶ x
 
-{-
-bilinear1 ∷ ∀ m n. (KnownNat n, KnownNat m) ⇒ LA.L m n → Jet (m + n) 1
-bilinear1 b = Jet $ \x → let (x1,x2) = LA.split @m x
-                             bx2     = b LA.#> x2
-                             x1b     = LA.tr b LA.#> x1
-                             r       = LA.row x1 LA.#> bx2
-                          in (r, ((LA.row $ bx2 LA.# x1b) LA.#>)) 
-
-bilinear ∷ ∀ m n l. (KnownNat n, KnownNat m, KnownNat l) ⇒ [LA.L m n] → Jet (m + n) l
-bilinear bs = Jet $ \x → let (x1,x2) = LA.split @m x
-                             bx2'    = (LA.#> x2) <$> bs
-                             x1b'    = ((LA.#> x1) . LA.tr) <$> bs
-                             r'      = (x1 LA.<.>) <$> bx2'
-                             r       = LA.vector r'
-                             Just d  = LA.create $ LA'.fromRows $ LA.extract <$> L.zipWith (LA.#) bx2' x1b'
-                          in (r, d)   
--}

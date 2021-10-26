@@ -78,7 +78,7 @@ instance PrimMonad m ⇒ TestM (ReaderT (TestContext m) m) where
     sample = do
                 let n = intVal @n
                 g ← asks gen 
-                ~(Just xu) ← LA.create <$> MWC.uniformVector g n
+                ~(Just xu) ← LA.create <$> G.replicateM n (MWC.uniformRM (-2,2) g)
                 return $ 2*xu - 1
     judgeR x = asks tol >>= \ε → return $ G.all (\c → abs c < ε) (LA.extract x) 
     judgeL a = asks tol >>= \ε → return $ G.all (\c → abs c < ε) (LA'.flatten $ LA.extract a) 
