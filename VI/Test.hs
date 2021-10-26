@@ -109,3 +109,7 @@ mmAssociativeT = (mm . (bimap mm id), mm . (bimap id mm) . asR)
 mTmT ∷ (KnownNat m, KnownNat n, 1 <= n) ⇒ Pair (M m n) (M n n)
 mTmT = (emb . mTm, mm . (bimap tr id) . (id × id))
 
+mixSimplexIntervalT ∷ Pair (I 1, (Δ 1, Δ 1)) (Δ 1) 
+mixSimplexIntervalT = (mix, osi . mix @(I 1) . bimap id (bimap iso iso))
+
+

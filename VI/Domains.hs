@@ -279,7 +279,7 @@ instance (KnownNat n, 1 <= n) ⇒ Scale (Σ n) where
 instance (KnownNat n, 1 <= n) ⇒ Scale (U n) where
     scale  = Mor $ fromPoints2' $ \c x → (diag ▶ c) * x
 
-instance (ScaleP x, Add x) ⇒ Mix x where
+instance {-# OVERLAPPABLE #-} (ScaleP x, Add x) ⇒ Mix x where
     mix = fromPoints3 $ \c x x' → let k  = emb ▶ c
                                       k' = emb ▶ invol ▶ c
                                       y  = k  ◀ scalep $ x
@@ -294,11 +294,12 @@ instance KnownNat n ⇒ Mix (Δ  n) where
                                    in simplexProjection ▶ (y ◀ add $ y')
 
 instance KnownNat n ⇒ Mix (I  n) where
-    mix = Mor $ fromPoints3' $ \c x x' → let ec  = diag ▶ (exp c)
-                                             ex  = exp x
-                                             ex' = exp x'
-                                             z   = ((ec * ex) / (1 + ex) + ex' / (1 + ex')) / (1 + ec)
-                                          in log $ z / (1 - z)
+    mix = Mor $ fromPoints3' $ \c x x' → let e z = let w = exp z in w / (1 + w)
+                                             d   = e (diag ▶ c)
+                                             y   = e x
+                                             y'  = e x'
+                                             y'' = d * y + (1 - d) * y'
+                                          in log $ y'' / (1 - y'')
          
 {-
 
