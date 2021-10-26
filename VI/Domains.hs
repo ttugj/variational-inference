@@ -230,6 +230,9 @@ instance (KnownNat m, KnownNat n) ⇒ Add (M m n) where
 instance KnownNat n ⇒ Add (Σ n) where
     add = Mor $ fromPoints2' (+)
 
+instance KnownNat n ⇒ Add (U n) where
+    add = Mor $ fromPoints2' (+)
+
 tr ∷ ∀ m n. (KnownNat m, KnownNat n) ⇒ Mor (M m n) (M n m) 
 tr = let n = intVal @n
          m = intVal @m
@@ -265,6 +268,15 @@ instance KnownNat n ⇒ Σp n ⊂ Σ n where
 instance KnownNat n ⇒ Mul (M n n) where
     mul = mm
 
+instance (KnownNat m, KnownNat n) ⇒ Scale (M m n) where
+    scale  = Mor $ fromPoints2' $ \c x → (diag ▶ c) * x
+
+instance KnownNat n ⇒ Scale (Σ n) where
+    scale  = Mor $ fromPoints2' $ \c x → (diag ▶ c) * x
+
+instance KnownNat n ⇒ Scale (U n) where
+    scale  = Mor $ fromPoints2' $ \c x → (diag ▶ c) * x
+
 instance (ScaleP x, Add x) ⇒ Mix x where
     mix = fromPoints3 $ \c x x' → let k  = emb ▶ c
                                       k' = emb ▶ invol ▶ c
@@ -275,18 +287,12 @@ instance (ScaleP x, Add x) ⇒ Mix x where
 {-
 
 {-
-instance KnownNat n ⇒ Mix (ℝp n) where
 instance KnownNat n ⇒ Mix (I  n) where
 instance KnownNat n ⇒ Mix (Δ  n) where
 -}
 
-
 {-
 instance KnownNat n ⇒ Add (Σp n)
-
-
-instance (KnownNat m, KnownNat n) ⇒ Scale (M m n)
-instance KnownNat n ⇒ Scale (Σ n)
 instance KnownNat n ⇒ ScaleP (Σp n)
 
 mTm' ∷ k >= n ⇒ M k n → Σp n
