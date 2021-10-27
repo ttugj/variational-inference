@@ -28,9 +28,11 @@ import GHC.Num
 import qualified Data.Vector.Generic as G
 import qualified Data.Vector.Generic.Mutable as GM
 
--- | 1-jet of a map R^n -> R^m, as value & transpose Jacobian
---
--- Note the associated instances.
+-- | @Jet n m@ models sections of J¹(π₁ : R^n × R^m → R^n),
+-- mapping a point of R^n to a point of R^m together with a
+-- transpose Jacobian R^m → R^n. Note that the latter is a 
+-- map on points, not a jet itself; thus 'Jet' interprets only
+-- first-order differentiable programs.
 --
 -- Example:
 --

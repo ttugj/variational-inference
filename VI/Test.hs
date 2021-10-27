@@ -5,10 +5,8 @@
 {-# OPTIONS_GHC -fplugin GHC.TypeLits.Normalise #-}
 {-# OPTIONS_GHC -fconstraint-solver-iterations=10 #-}
 
-module VI.Test ( -- * Evaluation at points
-                 valueAtPoint, gradAtPoint, evalAtPoint 
-                 -- * General classes for tests 
-               , Test(..), TestM(..), doTest'
+module VI.Test ( -- * General classes for tests  
+                 Test(..), TestM(..), doTest'
                , withTolerance
                  -- * Assorted tests
                  -- ** Domains
@@ -17,6 +15,8 @@ module VI.Test ( -- * Evaluation at points
                , trInvolutiveT, symRetractionT
                , mmAssociativeT, mTmT
                , mixSimplexIntervalT
+                 -- * Debugging
+               , valueAtPoint, gradAtPoint, evalAtPoint 
                ) where
 
 import VI.Categories
@@ -37,8 +37,6 @@ import GHC.TypeLits
 import GHC.Types
 import GHC.Classes
 import GHC.Num
-
--- import Debug.Trace
 
 import qualified Numeric.LinearAlgebra.Static as LA
 import qualified Numeric.LinearAlgebra        as LA'
