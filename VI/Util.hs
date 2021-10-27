@@ -41,7 +41,7 @@ lixM ∷ Int → Int → [(Int,Int)]
 lixM n m = [(i,j) | i ← [0..n-1], j ← [0..m-1]]
 
 lixΣ, lixU ∷ Int → [(Int,Int)]
-lixU n = [(e+d,e) | d ← [0..n-1], e ← [0..n-1-d]]
+lixU n = [(e,e+d) | d ← [0..n-1], e ← [0..n-1-d]]
 lixΣ   = lixU
 
 basisH ∷ ∀ n. KnownNat n ⇒ LA.L (n + 1) n 

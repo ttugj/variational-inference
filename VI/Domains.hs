@@ -45,7 +45,7 @@ module VI.Domains ( -- * Cartesian category of domains
                   , simplexProjection
                     -- * Matrix operations
                     -- ** main
-                  , tr, sym, chol, inverseChol, mm, mTm
+                  , tr, sym, triu, chol, inverseChol, mm, mTm
                   , Square(..)
                     -- ** auxiliary
                   , toNil, decomposeChol, composeChol 
@@ -451,8 +451,8 @@ inverseChol = chol . composeChol . f . decomposeChol
                                                  v    = neg ▶ (di'' ◀ mul $ (toNil ▶ u)) -- -D^{-1} U_nil
                                                  go 1 = v
                                                  go k = v ◀ add $ (v ◀ mul $ go (k-1))
-                                                 ui   = di'' ◀ mul $ go (n-1)           -- D^{-1} Σ_{0<k<n} (-D^{-1} U_nil)^k
-                                              in di × ui                                -- D^{-1} Σ_{k>=0}  (-D^{-1} U_nil)^k 
-                                                                                        -- = D^{-1} [ I + D^{-1} U ]^{-1} 
-                                                                                        -- = [ D + U ]^{-1}
+                                                 ui   = go (n-1) ◀ mul $ di''            -- ( Σ_{0<k<n} (-D^{-1} U_nil)^k ) D^{-1}
+                                              in di × ui                                 -- ( Σ_{k>=0}  (-D^{-1} U_nil)^k ) D^{-1}
+                                                                                         -- = [ I + D^{-1} U_nil ]^{-1}  D^{-1}
+                                                                                         -- = [ D + U_nil ]^{-1}
 

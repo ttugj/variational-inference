@@ -147,7 +147,10 @@ randomPoint = do
                 return $ Mor $ point xu
 
 foo = do
-        p ← randomPoint @(Σp 3)
+        p ← randomPoint @(Σp 2)
         let p'  = chol ▶ p
             p'' = inverseChol ▶ p
-        return $ (getMatrix @3 @3 p', getMatrix @3 @3 p'')
+            q   = p' ◀ mul $ p''
+        return $ (getMatrix @2 @2 p', getMatrix @2 @2 p'', getMatrix @2 @2 q)
+
+
