@@ -356,15 +356,22 @@ instance (KnownNat n, 1 <= n) ⇒ Square (Σp n) where
     toDiag = Mor $ pr1' @_ @n
     fromDiag = Mor $ id ⊙ 0
 
-{-
+instance (KnownNat n, 1 <= n) ⇒ Add (Σp n) where
+    add = Mor $ fromPoints2' $ \x y → let x0 = pr1' @_ @n ▶ x
+                                          x1 = pr2' @_ @n ▶ x
+                                          y0 = pr1' @_ @n ▶ y
+                                          y1 = pr2' @_ @n ▶ y
+                                          z0 = log (exp x0 + exp y0)
+                                          z1 = x1 + y1
+                                       in z0 ⊙ z1  
 
-{-
-instance (KnownNat n, 1 <= n) ⇒ Add (Σp n)
-instance (KnownNat n, 1 <= n) ⇒ ScaleP (Σp n)
+instance (KnownNat n, 1 <= n) ⇒ ScaleP (Σp n) where
+    scalep = Mor $ fromPoints2' $ \c x → let x0 = pr1' @_ @n ▶ x
+                                             x1 = pr2' @_ @n ▶ x
+                                             e  = exp c
+                                             y0 = (expand ▶ c) + x0
+                                             y1 = (expand ▶ e) * x1
+                                            in y0 ⊙ y1  
 
-mTm' ∷ k >= n ⇒ M k n → Σp n
-mmT' ∷ k >= n ⇒ M n k → Σp n
--}
 
--}
 
