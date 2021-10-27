@@ -41,7 +41,7 @@ module VI.Domains ( -- * Cartesian category of domains
                   , Concrete(..), getPoint
                     -- * Basic operations
                   , type(⊂)(..), type(≌)(..)
-                  , Add(..), Mul(..), ScaleP(..), Scale(..), Mix(..), Invol(..)
+                  , Based(..), Add(..), Mul(..), ScaleP(..), Scale(..), Mix(..), Invol(..)
                   , simplexProjection
                     -- * Matrix operations
                     -- ** main
