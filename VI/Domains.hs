@@ -79,7 +79,7 @@ class    KnownNat (Dim x) ⇒ Domain x
 instance KnownNat (Dim x) ⇒ Domain x
 
 -- | Morphisms between domains
-data Mor x y = Mor (Jet (Dim x) (Dim y))
+data Mor x y = Mor (J (Dim x) (Dim y))
 
 instance Cat Domain Mor where
     id = Mor id
@@ -128,8 +128,8 @@ instance KnownNat n ⇒ Concrete n (ℝ n) where
     fromConcrete x  = Mor $ point x
    
 getPoint ∷ ∀ (n ∷ Nat) (x ∷ Type). Concrete n x ⇒ Mor Pt x → LA.R n
-getPoint p = let Mor (Jet f) = toConcrete . p
-                 (y, _)      = f undefined
+getPoint p = let Mor (J f) = toConcrete . p
+                 (y, _)    = f undefined
               in y
 
 -- | Canonical isomorphism
@@ -168,13 +168,13 @@ instance (KnownNat n, 1 <= n) ⇒ Σ n ⊂ M n n where
 
 instance (KnownNat n, 1 <= n) ⇒ U n ⊂ M n n where
     emb = let n = intVal @n 
-              ι ∷ Jet ((Dim (U n)) + 1) (Dim (M n n))
+              ι ∷ J ((Dim (U n)) + 1) (Dim (M n n))
               ι = law . mkFin' $ fromMaybe ((n*(n+1)) `div` 2) . uncurry (ixU n) <$> lixM n n 
            in Mor $ ι . (id ⊙ 0)
 
 -- | Upper-triangular Cholesky factor
 chol ∷ ∀ n. (KnownNat n, 1 <= n) ⇒ Mor (Σp n) (U n)
-chol = Mor $ bimap' @Jet @n @((n * (n - 1)) `Div` 2) (fromPoints exp) id
+chol = Mor $ bimap' @J @n @((n * (n - 1)) `Div` 2) (fromPoints exp) id
 
 instance KnownNat n ⇒ Concrete n (ℝp n) where
     toConcrete      = emb
@@ -284,16 +284,16 @@ mm ∷ ∀ m n l. (KnownNat m, KnownNat n, KnownNat l) ⇒ Mor (M m n, M n l) (M
 mm = let m = intVal @m
          n = intVal @n
          l = intVal @l
-      in Mor $ Jet $ \x → let (af, bf) = LA.split @(m * n) x
-                              a ∷ LA.L m n = fromRtoL af
-                              b ∷ LA.L n l = fromRtoL bf
-                              y ∷ LA.R (m * l) = fromLtoR $ a LA.<> b
-                              g dy = let δ  ∷ LA.L m l= fromRtoL dy 
-                                         d1 ∷ LA.R (m * n) = fromLtoR $ δ LA.<> (LA.tr b)
-                                         d2 ∷ LA.R (n * l) = fromLtoR $ (LA.tr a) LA.<> δ
-                                         dx = d1 LA.# d2
-                                      in dx
-                           in (y, g)
+      in Mor $ J $ \x → let (af, bf) = LA.split @(m * n) x
+                            a ∷ LA.L m n = fromRtoL af
+                            b ∷ LA.L n l = fromRtoL bf
+                            y ∷ LA.R (m * l) = fromLtoR $ a LA.<> b
+                            g dy = let δ  ∷ LA.L m l= fromRtoL dy 
+                                       d1 ∷ LA.R (m * n) = fromLtoR $ δ LA.<> (LA.tr b)
+                                       d2 ∷ LA.R (n * l) = fromLtoR $ (LA.tr a) LA.<> δ
+                                       dx = d1 LA.# d2
+                                    in dx
+                         in (y, g)
 
 mTm ∷ ∀ m n. (KnownNat m, KnownNat n, 1 <= n) ⇒ Mor (M m n) (Σ n)
 mTm = sym . mm @n @m @n . bimap tr id . (id × id)

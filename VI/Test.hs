@@ -66,8 +66,8 @@ instance (KnownNat n, KnownNat k) ⇒ Test (LA.L n k) where
 instance (KnownNat n, Test a) ⇒ Test (LA.R n → a) where
     doTest f g = sample >>= doTest <$> f <*> g 
 
-instance (KnownNat n, KnownNat k) ⇒ Test (Jet n k) where
-    doTest (Jet φ) (Jet ψ) = doTest φ ψ 
+instance (KnownNat n, KnownNat k) ⇒ Test (J n k) where
+    doTest (J φ) (J ψ) = doTest φ ψ 
 
 instance (Domain x, Domain y) ⇒ Test (Mor x y) where
     doTest (Mor φ) (Mor ψ) = doTest φ ψ
@@ -120,8 +120,8 @@ valueAtPoint ∷ ∀ (x ∷ Type) (y ∷ Type) (n ∷ Nat) (m ∷ Nat). (Concret
 valueAtPoint φ p = getPoint $ φ . fromConcrete p
 
 gradAtPoint ∷ ∀ (x ∷ Type) (y ∷ Type) (n ∷ Nat) (m ∷ Nat). (Concrete n x, Concrete m y) ⇒ Mor x y → LA.R n → LA.L m (Dim x)
-gradAtPoint φ p = let Mor (Jet f) = toConcrete @m @y . φ
-                      Mor (Jet g) = fromConcrete @n @x p
+gradAtPoint φ p = let Mor (J f) = toConcrete @m @y . φ
+                      Mor (J g) = fromConcrete @n @x p
                       (p',_) = g undefined
                       (_, h) = f p'
                       e      = LA.eye @m
