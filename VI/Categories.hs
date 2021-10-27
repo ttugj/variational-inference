@@ -13,7 +13,7 @@ module VI.Categories ( -- * Categories
                      , fromPoints, toPoints, fromPoints2, toPoints2, fromPoints2', toPoints2', fromPoints3, fromPoints3'
                      , (▶), (◀)
                        -- * Lawvere theories
-                     , Fin'(..), mkFin', Law(..), diag
+                     , Fin'(..), mkFin', Law(..), expand
                        -- * Auxiliary
                      , intVal
                      ) where
@@ -158,8 +158,8 @@ class Cart' c ⇒ Law c where
     law ∷ Fin' n m → c n m
 
 -- | the @n@-diagonal, using 'law'
-diag ∷ ∀ n c. (KnownNat n, Law c) ⇒ c 1 n
-diag = let n = intVal @n in law $ Fin' $ V.replicate n 0
+expand ∷ ∀ n c. (KnownNat n, Law c) ⇒ c 1 n
+expand = let n = intVal @n in law $ Fin' $ V.replicate n 0
 
 
 

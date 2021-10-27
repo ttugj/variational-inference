@@ -45,6 +45,7 @@ module VI.Domains ( -- * Cartesian category of domains
                   , simplexProjection
                     -- * Matrix operations
                   , tr, sym, mm, mTm
+                  , Square(..)
                   ) where
 
 import VI.Categories
@@ -233,10 +234,10 @@ instance KnownNat n ⇒ Mul (I n) where
     mul = Mor $ fromPoints2' $ \x y → x + y - log (1 + exp x + exp y)  
 
 instance KnownNat n ⇒ ScaleP (ℝp n) where
-    scalep = Mor $ fromPoints2' $ \c x → (diag ▶ c) + x
+    scalep = Mor $ fromPoints2' $ \c x → (expand ▶ c) + x
               
 instance KnownNat n ⇒ Scale (ℝ n) where
-    scale  = Mor $ fromPoints2' $ \c x → (diag ▶ c) * x
+    scale  = Mor $ fromPoints2' $ \c x → (expand ▶ c) * x
 
 instance KnownNat n ⇒ Invol (ℝ  n) 
 instance KnownNat n ⇒ Invol (ℝp n) 
@@ -253,7 +254,7 @@ simplexProjection = Mor $ linear (LA.tr basisH)
 instance (KnownNat n, KnownNat m, m ~ (n + 1)) ⇒ Δ n ⊂ ℝp m where
     emb = Mor $ fromPoints $ \x → let y = linear basisH ▶ x
                                       s = log (linear 1 ▶ exp y)
-                                   in y - (diag ▶ s)
+                                   in y - (expand ▶ s)
 
 instance Δ 1 ≌ I 1 where
     iso = Mor $ linear (LA.konst (sqrt 2) * LA.eye)
@@ -305,13 +306,13 @@ instance (KnownNat n, 1 <= n) ⇒ Mul (M n n) where
     mul = mm
 
 instance (KnownNat m, KnownNat n) ⇒ Scale (M m n) where
-    scale  = Mor $ fromPoints2' $ \c x → (diag ▶ c) * x
+    scale  = Mor $ fromPoints2' $ \c x → (expand ▶ c) * x
 
 instance (KnownNat n, 1 <= n) ⇒ Scale (Σ n) where
-    scale  = Mor $ fromPoints2' $ \c x → (diag ▶ c) * x
+    scale  = Mor $ fromPoints2' $ \c x → (expand ▶ c) * x
 
 instance (KnownNat n, 1 <= n) ⇒ Scale (U n) where
-    scale  = Mor $ fromPoints2' $ \c x → (diag ▶ c) * x
+    scale  = Mor $ fromPoints2' $ \c x → (expand ▶ c) * x
 
 instance {-# OVERLAPPABLE #-} (ScaleP x, Add x) ⇒ Mix x where
     mix = fromPoints3 $ \c x x' → let k  = emb ▶ c
@@ -329,17 +330,37 @@ instance KnownNat n ⇒ Mix (Δ  n) where
 
 instance KnownNat n ⇒ Mix (I  n) where
     mix = Mor $ fromPoints3' $ \c x x' → let e z = let w = exp z in w / (1 + w)
-                                             d   = e (diag ▶ c)
+                                             d   = e (expand ▶ c)
                                              y   = e x
                                              y'  = e x'
                                              y'' = (1-d) * y + d * y'
                                           in log $ y'' / (1 - y'')
-         
+
+class Domain x ⇒ Square x where
+    type Diag x
+    toDiag      ∷ Mor x (Diag x)
+    fromDiag    ∷ Mor (Diag x) x
+
+instance (KnownNat n, 1 <= n) ⇒ Square (U n) where
+    type Diag (U n) = ℝ n
+    toDiag = Mor $ pr1' @_ @n
+    fromDiag = Mor $ id ⊙ 0
+
+instance (KnownNat n, 1 <= n) ⇒ Square (Σ n) where
+    type Diag (Σ n) = ℝ n
+    toDiag = Mor $ pr1' @_ @n
+    fromDiag = Mor $ id ⊙ 0
+
+instance (KnownNat n, 1 <= n) ⇒ Square (Σp n) where
+    type Diag (Σp n) = ℝp n
+    toDiag = Mor $ pr1' @_ @n
+    fromDiag = Mor $ id ⊙ 0
+
 {-
 
 {-
-instance KnownNat n ⇒ Add (Σp n)
-instance KnownNat n ⇒ ScaleP (Σp n)
+instance (KnownNat n, 1 <= n) ⇒ Add (Σp n)
+instance (KnownNat n, 1 <= n) ⇒ ScaleP (Σp n)
 
 mTm' ∷ k >= n ⇒ M k n → Σp n
 mmT' ∷ k >= n ⇒ M n k → Σp n
