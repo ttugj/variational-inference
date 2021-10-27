@@ -15,6 +15,7 @@ module VI.Test ( -- * General classes for tests
                , trInvolutiveT, symRetractionT
                , mmAssociativeT, mTmT
                , mixSimplexIntervalT
+               , inverseCholT
                  -- * Debugging
                , valueAtPoint, gradAtPoint, evalAtPoint, getMatrix, randomPoint
                ) where
@@ -116,8 +117,8 @@ mTmT = (emb . mTm, mm . (bimap tr id) . (id × id))
 mixSimplexIntervalT ∷ Pair (I 1, (Δ 1, Δ 1)) (ℝp 1) 
 mixSimplexIntervalT = (pr1 . osi @(ℝp 1, ℝp 1) . emb @(Δ 1) @(ℝp 2) . mix, emb . mix @(I 1) . bimap id (bimap iso iso))
 
-cholInvolT ∷ ∀ n. (KnownNat n, 1 <= n) ⇒ Pair (Σp n) (U n)
-cholInvolT = (mul . (inverseChol × chol), chol . basePt . terminal)
+inverseCholT ∷ ∀ n. (KnownNat n, 1 <= n) ⇒ Pair (Σp n) (U n)
+inverseCholT = (mul . (inverseChol × chol), chol . basePt . terminal)
 
 valueAtPoint ∷ ∀ (x ∷ Type) (y ∷ Type) (n ∷ Nat) (m ∷ Nat). (Concrete n x, Concrete m y) ⇒ Mor x y → LA.R n → LA.R m
 valueAtPoint φ p = getPoint $ φ . fromConcrete p
@@ -145,12 +146,4 @@ randomPoint = do
                 gen ← MWC.createSystemRandom 
                 Just xu ← LA.create <$> G.replicateM (intVal @(Dim x)) (MWC.uniformRM (-2,2) gen)
                 return $ Mor $ point xu
-
-foo = do
-        p ← randomPoint @(Σp 2)
-        let p'  = chol ▶ p
-            p'' = inverseChol ▶ p
-            q   = p' ◀ mul $ p''
-        return $ (getMatrix @2 @2 p', getMatrix @2 @2 p'', getMatrix @2 @2 q)
-
 
