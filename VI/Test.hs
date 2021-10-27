@@ -16,7 +16,7 @@ module VI.Test ( -- * General classes for tests
                , mmAssociativeT, mTmT
                , mixSimplexIntervalT
                  -- * Debugging
-               , valueAtPoint, gradAtPoint, evalAtPoint 
+               , valueAtPoint, gradAtPoint, evalAtPoint, getMatrix, randomPoint
                ) where
 
 import VI.Categories
@@ -84,7 +84,7 @@ instance PrimMonad m ⇒ TestM (ReaderT (TestContext m) m) where
                 let n = intVal @n
                 g ← asks gen 
                 ~(Just xu) ← LA.create <$> G.replicateM n (MWC.uniformRM (-2,2) g)
-                return $ 2*xu - 1
+                return xu
     judgeR x = asks tol >>= \ε → return $ G.all (\c → abs c < ε) (LA.extract x) 
     judgeL a = asks tol >>= \ε → return $ G.all (\c → abs c < ε) (LA'.flatten $ LA.extract a) 
 
@@ -116,11 +116,8 @@ mTmT = (emb . mTm, mm . (bimap tr id) . (id × id))
 mixSimplexIntervalT ∷ Pair (I 1, (Δ 1, Δ 1)) (ℝp 1) 
 mixSimplexIntervalT = (pr1 . osi @(ℝp 1, ℝp 1) . emb @(Δ 1) @(ℝp 2) . mix, emb . mix @(I 1) . bimap id (bimap iso iso))
 
-cholInvolT ∷ ∀ n. (KnownNat n, 1 <= n) ⇒ Pair (Σp n) (M n n)
-cholInvolT = (mm @n @n @n . ((emb' . invol) × emb'), emb' . basePt @(Σp n) . terminal)
-                where
-                        emb' ∷ Mor (Σp n) (M n n)
-                        emb' = emb @(Σ n) . emb
+cholInvolT ∷ ∀ n. (KnownNat n, 1 <= n) ⇒ Pair (Σp n) (U n)
+cholInvolT = (mul . (inverseChol × chol), chol . basePt . terminal)
 
 valueAtPoint ∷ ∀ (x ∷ Type) (y ∷ Type) (n ∷ Nat) (m ∷ Nat). (Concrete n x, Concrete m y) ⇒ Mor x y → LA.R n → LA.R m
 valueAtPoint φ p = getPoint $ φ . fromConcrete p
@@ -137,4 +134,20 @@ gradAtPoint φ p = let Mor (J f) = toConcrete @m @y . φ
 evalAtPoint ∷ ∀ (x ∷ Type) (y ∷ Type) (n ∷ Nat) (m ∷ Nat). (Concrete n x, Concrete m y) ⇒ Mor x y → LA.R n → (LA.R m, LA.L m (Dim x))
 evalAtPoint φ p = (valueAtPoint φ p, gradAtPoint φ p)
 
+getMatrix ∷ ∀ m n (x ∷ Type). (KnownNat m, KnownNat n, x ⊂ M m n) ⇒ Mor Pt x → LA.L m n
+getMatrix p = let Mor (J f) = emb @x @(M m n) . p
+                  (y, _)    = f undefined
+                  Just z    = LA.create $ LA'.reshape (intVal @n) (LA.extract y)
+               in z   
 
+randomPoint ∷ ∀ x. Domain x ⇒ IO (Mor Pt x)
+randomPoint = do
+                gen ← MWC.createSystemRandom 
+                Just xu ← LA.create <$> G.replicateM (intVal @(Dim x)) (MWC.uniformRM (-2,2) gen)
+                return $ Mor $ point xu
+
+foo = do
+        p ← randomPoint @(Σp 3)
+        let p'  = chol ▶ p
+            p'' = inverseChol ▶ p
+        return $ (getMatrix @3 @3 p', getMatrix @3 @3 p'')
