@@ -5,8 +5,10 @@
 {-# OPTIONS_GHC -fplugin GHC.TypeLits.Normalise #-}
 {-# OPTIONS_GHC -fconstraint-solver-iterations=10 #-}
 
-module VI.Test ( -- * General classes
-                 Test(..), TestM(..), doTest'
+module VI.Test ( -- * Evaluation at points
+                 valueAtPoint, gradAtPoint, evalAtPoint 
+                 -- * General classes for tests 
+               , Test(..), TestM(..), doTest'
                , withTolerance
                  -- * Assorted tests
                  -- ** Domains
@@ -29,7 +31,7 @@ import Control.Monad.Reader
 import Data.Bool
 import Data.Maybe
 import Data.Kind
-import Prelude (($), uncurry)
+import Prelude (($), uncurry, undefined)
 
 import GHC.TypeLits
 import GHC.Types
@@ -116,8 +118,18 @@ mTmT = (emb . mTm, mm . (bimap tr id) . (id × id))
 mixSimplexIntervalT ∷ Pair (I 1, (Δ 1, Δ 1)) (ℝp 1) 
 mixSimplexIntervalT = (pr1 . osi @(ℝp 1, ℝp 1) . emb @(Δ 1) @(ℝp 2) . mix, emb . mix @(I 1) . bimap id (bimap iso iso))
 
-checkOnPoints ∷ ∀ (x ∷ Type) (y ∷ Type) (n ∷ Nat) (m ∷ Nat). (Concrete n x, Concrete m y) ⇒ Mor x y → LA.R n → LA.R m
-checkOnPoints φ p = getPoint $ φ . fromConcrete p
+valueAtPoint ∷ ∀ (x ∷ Type) (y ∷ Type) (n ∷ Nat) (m ∷ Nat). (Concrete n x, Concrete m y) ⇒ Mor x y → LA.R n → LA.R m
+valueAtPoint φ p = getPoint $ φ . fromConcrete p
 
-foo = checkOnPoints $ mix @(I 1)
-bar = checkOnPoints $ mix @(Δ 1)
+gradAtPoint ∷ ∀ (x ∷ Type) (y ∷ Type) (n ∷ Nat) (m ∷ Nat). (Concrete n x, Concrete m y) ⇒ Mor x y → LA.R n → LA.L m (Dim x)
+gradAtPoint φ p = let Mor (Jet f) = toConcrete @m @y . φ
+                      Mor (Jet g) = fromConcrete @n @x p
+                      (p',_) = g undefined
+                      (_, h) = f p'
+                      e      = LA.eye @m
+                      Just a = LA.create $ LA'.fromRows $ fmap (LA.extract . h) $ LA.toRows e
+                   in a   
+
+evalAtPoint ∷ ∀ (x ∷ Type) (y ∷ Type) (n ∷ Nat) (m ∷ Nat). (Concrete n x, Concrete m y) ⇒ Mor x y → LA.R n → (LA.R m, LA.L m (Dim x))
+evalAtPoint φ p = (valueAtPoint φ p, gradAtPoint φ p)
+

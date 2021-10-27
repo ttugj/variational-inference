@@ -75,7 +75,7 @@ instance (KnownNat n, KnownNat m) ⇒ Num (Jet n m) where
 
 instance (KnownNat n, KnownNat m) ⇒ Fractional (Jet n m) where
     fromRational r = Jet $ \_ → (fromRational r, pure 0)
-    recip          = lift1 @Fractional $ \x → (recip x, negate $ x * x)
+    recip          = lift1 @Fractional $ \x → (recip x, negate . recip $ x * x)
 
 instance (KnownNat n, KnownNat m) ⇒ Floating (Jet n m) where
     pi             = Jet $ \_ → (pi, pure 0)
