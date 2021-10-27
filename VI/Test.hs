@@ -115,3 +115,9 @@ mTmT = (emb . mTm, mm . (bimap tr id) . (id × id))
 
 mixSimplexIntervalT ∷ Pair (I 1, (Δ 1, Δ 1)) (ℝp 1) 
 mixSimplexIntervalT = (pr1 . osi @(ℝp 1, ℝp 1) . emb @(Δ 1) @(ℝp 2) . mix, emb . mix @(I 1) . bimap id (bimap iso iso))
+
+checkOnPoints ∷ ∀ (x ∷ Type) (y ∷ Type) (n ∷ Nat) (m ∷ Nat). (Concrete n x, Concrete m y) ⇒ Mor x y → LA.R n → LA.R m
+checkOnPoints φ p = getPoint $ φ . fromConcrete p
+
+foo = checkOnPoints $ mix @(I 1)
+bar = checkOnPoints $ mix @(Δ 1)

@@ -1,4 +1,4 @@
-{-# LANGUAGE UnicodeSyntax, PolyKinds, DataKinds, TypeFamilies, TypeOperators, GADTs, ConstraintKinds, TypeApplications, AllowAmbiguousTypes, NoImplicitPrelude, UndecidableInstances, NoStarIsType, MultiParamTypeClasses, FlexibleInstances, FlexibleContexts, LiberalTypeSynonyms, ScopedTypeVariables, InstanceSigs, DefaultSignatures #-}
+{-# LANGUAGE UnicodeSyntax, PolyKinds, DataKinds, TypeFamilies, TypeOperators, GADTs, ConstraintKinds, TypeApplications, AllowAmbiguousTypes, NoImplicitPrelude, UndecidableInstances, NoStarIsType, MultiParamTypeClasses, FlexibleInstances, FlexibleContexts, LiberalTypeSynonyms, ScopedTypeVariables, InstanceSigs, DefaultSignatures, FunctionalDependencies #-}
 
 {-# OPTIONS_GHC -fplugin GHC.TypeLits.Extra.Solver #-}
 {-# OPTIONS_GHC -fplugin GHC.TypeLits.KnownNat.Solver #-}
@@ -37,7 +37,8 @@ module VI.Domains ( -- * Cartesian category of domains
                     Dim, Domain, Mor(..)
                     -- * Basic domains
                   , Pt, ℝ, ℝp, I, Δ, M, Σ, Σp, U
-                  , Concrete(..)
+                    -- * Concrete presentation
+                  , Concrete(..), getPoint
                     -- * Basic operations
                   , type(⊂)(..), type(≌)(..)
                   , Add(..), Mul(..), ScaleP(..), Scale(..), Mix(..), Invol(..)
@@ -114,13 +115,22 @@ type instance Dim (Σp n  ) = n + ((n * (n - 1)) `Div` 2)
 type instance Dim (U  n  ) = n + ((n * (n - 1)) `Div` 2)
 
 -- | Concrete presentation
-class (Domain x, KnownNat n) ⇒ Concrete n x where
+class (Domain x, KnownNat n) ⇒ Concrete (n ∷ Nat) (x ∷ Type) | x → n where
     toConcrete      ∷ Mor x (ℝ n)    
     fromConcrete    ∷ LA.R n → Mor Pt x
+
+instance {-# OVERLAPPABLE #-} (Concrete n x, Concrete m y, KnownNat l, l ~ n + m) ⇒ Concrete l (x, y) where
+    toConcrete      = iso . bimap (toConcrete @n @x) (toConcrete @m @y)
+    fromConcrete p  = uncurry (×) $ bimap (fromConcrete @n @x) (fromConcrete @m @y) $ LA.split @n p
 
 instance KnownNat n ⇒ Concrete n (ℝ n) where
     toConcrete      = id
     fromConcrete x  = Mor $ point x
+   
+getPoint ∷ ∀ (n ∷ Nat) (x ∷ Type). Concrete n x ⇒ Mor Pt x → LA.R n
+getPoint p = let Mor (Jet f) = toConcrete . p
+                 (y, _)      = f undefined
+              in y
 
 -- | Canonical isomorphism
 class (Domain x, Domain y, Dim x ~ Dim y) ⇒ x ≌ y where
