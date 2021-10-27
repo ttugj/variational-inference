@@ -7,7 +7,7 @@
 module VI.Util ( 
         -- |
         -- This module collects certain data that actually needs to be computed.
-                 ixM, ixΣ, ixU, lixM, lixΣ, basisH 
+                 ixM, ixΣ, ixU, lixM, lixΣ, lixU, basisH 
                , fromLtoR, fromRtoL
                ) where
 
@@ -40,8 +40,9 @@ ixU n i j | i <= j      = let d = j-i
 lixM ∷ Int → Int → [(Int,Int)]
 lixM n m = [(i,j) | i ← [0..n-1], j ← [0..m-1]]
 
-lixΣ ∷ Int → [(Int,Int)]
-lixΣ n = [(e+d,e) | d ← [0..n-1], e ← [0..n-1-d]]
+lixΣ, lixU ∷ Int → [(Int,Int)]
+lixU n = [(e+d,e) | d ← [0..n-1], e ← [0..n-1-d]]
+lixΣ   = lixU
 
 basisH ∷ ∀ n. KnownNat n ⇒ LA.L (n + 1) n 
 basisH = let n      = fromInteger (natVal (Proxy ∷ Proxy n))

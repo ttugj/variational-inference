@@ -44,8 +44,11 @@ module VI.Domains ( -- * Cartesian category of domains
                   , Add(..), Mul(..), ScaleP(..), Scale(..), Mix(..), Invol(..)
                   , simplexProjection
                     -- * Matrix operations
+                    -- ** main
                   , tr, sym, mm, mTm
                   , Square(..)
+                    -- ** auxiliary
+                  , toNil, decomposeChol, composeChol 
                   ) where
 
 import VI.Categories
@@ -276,11 +279,17 @@ tr = let n = intVal @n
       in Mor . law $ mkFin' $ uncurry (flip (ixM n)) <$> lixM n m      
 
 
+-- | produce a symmetric matrix using the upper triangular part
 sym ∷ ∀ n. (KnownNat n, 1 <= n) ⇒ Mor (M n n) (Σ n)
 sym = let n = intVal @n
        in Mor . law $ mkFin' $ uncurry (ixM n) <$> lixΣ n
 
+-- | extract the upper triangular part
+triu ∷ ∀ n. (KnownNat n, 1 <= n) ⇒ Mor (M n n) (U n)
+triu = let n = intVal @n
+        in Mor . law $ mkFin' $ uncurry (ixM n) <$> lixU n   
 
+-- | matrix multiply
 mm ∷ ∀ m n l. (KnownNat m, KnownNat n, KnownNat l) ⇒ Mor (M m n, M n l) (M m l)
 mm = let m = intVal @m
          n = intVal @n
@@ -296,14 +305,18 @@ mm = let m = intVal @m
                                     in dx
                          in (y, g)
 
+-- | produce a symmetric matrix, mapping a to a^T a
 mTm ∷ ∀ m n. (KnownNat m, KnownNat n, 1 <= n) ⇒ Mor (M m n) (Σ n)
 mTm = sym . mm @n @m @n . bimap tr id . (id × id)
 
 instance (KnownNat n, 1 <= n) ⇒ Σp n ⊂ Σ n where
     emb = mTm @n @n  . emb . chol    -- we factor Σp n ⊂ Σ n through the space of upper-triangular matrices
 
-instance (KnownNat n, 1 <= n) ⇒ Mul (M n n) where
+instance KnownNat n ⇒ Mul (M n n) where
     mul = mm
+
+instance (KnownNat n,  1 <= n) ⇒ Mul (U n) where
+    mul = triu . mm @n @n @n . bimap emb emb
 
 instance (KnownNat m, KnownNat n) ⇒ Scale (M m n) where
     scale  = Mor $ fromPoints2' $ \c x → (expand ▶ c) * x
@@ -357,21 +370,32 @@ instance (KnownNat n, 1 <= n) ⇒ Square (Σp n) where
     fromDiag = Mor $ id ⊙ 0
 
 instance (KnownNat n, 1 <= n) ⇒ Add (Σp n) where
-    add = Mor $ fromPoints2' $ \x y → let x0 = pr1' @_ @n ▶ x
-                                          x1 = pr2' @_ @n ▶ x
-                                          y0 = pr1' @_ @n ▶ y
-                                          y1 = pr2' @_ @n ▶ y
+    add = Mor $ fromPoints2' $ \x y → let x0 = pr1' @J @n ▶ x
+                                          x1 = pr2' @J @n ▶ x
+                                          y0 = pr1' @J @n ▶ y
+                                          y1 = pr2' @J @n ▶ y
                                           z0 = log (exp x0 + exp y0)
                                           z1 = x1 + y1
                                        in z0 ⊙ z1  
 
 instance (KnownNat n, 1 <= n) ⇒ ScaleP (Σp n) where
-    scalep = Mor $ fromPoints2' $ \c x → let x0 = pr1' @_ @n ▶ x
-                                             x1 = pr2' @_ @n ▶ x
+    scalep = Mor $ fromPoints2' $ \c x → let x0 = pr1' @J @n ▶ x
+                                             x1 = pr2' @J @n ▶ x
                                              e  = exp c
                                              y0 = (expand ▶ c) + x0
                                              y1 = (expand ▶ e) * x1
-                                            in y0 ⊙ y1  
+                                          in y0 ⊙ y1  
 
+-- | take nilpotent part (i.e. put zeroes on diagonal)
+toNil ∷ ∀ n. (KnownNat n, 1 <= n) ⇒ Mor (U n) (U n)
+toNil = Mor $ 0 ⊙ pr2' @J @n
+
+-- | decompose upper Cholesky factor into diagonal and nilpotent parts
+decomposeChol ∷ (KnownNat n, 1 <= n) ⇒ Mor (Σp n) (ℝp n, U n)
+decomposeChol = toDiag × (toNil . chol)
+
+-- | inverse of 'decomposeChol'
+composeChol ∷ ∀ n. (KnownNat n, 1 <= n) ⇒ Mor (ℝp n, U n) (Σp n)
+composeChol = Mor $ bimap' @J @n @(n + (n * (n - 1)) `Div` 2) id (pr2' @J @n)
 
 
