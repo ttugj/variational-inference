@@ -5,7 +5,7 @@
 {-# OPTIONS_GHC -fplugin GHC.TypeLits.Normalise #-}
 
 module VI.Categories ( -- * Categories
-                       Cat(..), Unconstrained
+                       Cat(..), Unconstrained, Terminal(..)
                        -- * Cartesian categories
                      , Cart(..), bimap
                      , Cart'(..), bimap'
@@ -162,4 +162,6 @@ expand ∷ ∀ n c. (KnownNat n, Law c) ⇒ c 1 n
 expand = let n = intVal @n in law $ Fin' $ V.replicate n 0
 
 
+class Cat ob c ⇒ Terminal c ob x where
+    terminal ∷ ob y ⇒ c y x
 

@@ -136,6 +136,9 @@ getPoint p = let Mor (J f) = toConcrete . p
                  (y, _)    = f undefined
               in y
 
+instance Terminal Mor Domain Pt where
+    terminal = Mor 0
+
 -- | Canonical isomorphism
 class (Domain x, Domain y, Dim x ~ Dim y) ⇒ x ≌ y where
     iso ∷ Mor x y
@@ -373,6 +376,21 @@ instance (KnownNat n, 1 <= n) ⇒ Square (Σp n) where
     type Diag (Σp n) = ℝp n
     toDiag = Mor $ pr1' @_ @n
     fromDiag = Mor $ id ⊙ 0
+
+-- | Based domains
+class Domain x ⇒ Based x where
+    -- | by default, the basepoint is zero in canonical coordinates
+    basePt ∷ Mor Pt x
+    basePt = Mor 0
+
+instance KnownNat n ⇒ Based (ℝ  n)
+instance KnownNat n ⇒ Based (ℝp n)
+instance KnownNat n ⇒ Based (Δ  n)
+instance KnownNat n ⇒ Based (I  n)
+instance (KnownNat n, 1 <= n) ⇒ Based (Σ  n)
+instance (KnownNat n, 1 <= n) ⇒ Based (U  n)
+instance (KnownNat n, 1 <= n) ⇒ Based (Σp n)
+
 
 instance (KnownNat n, 1 <= n) ⇒ Add (Σp n) where
     add = Mor $ fromPoints2' $ \x y → let x0 = pr1' @J @n ▶ x
