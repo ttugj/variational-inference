@@ -213,6 +213,11 @@ class Domain x ⇒ Scale x where
     scale ∷ Mor (ℝ 1, x) x
 
 -- | Involutive domains
+-- 
+-- This is:
+--  *  negation on @ℝ n@, @Σ n@, @U n@
+--  *  inverse  on @ℝp n@, @Σp n@
+--  *  probability inverse on @I n@, @Δ n@
 class Domain x ⇒ Invol x where
     -- | by default, invol corresponds to negation in canonical coordinates
     invol ∷ Mor x x
@@ -391,11 +396,28 @@ toNil ∷ ∀ n. (KnownNat n, 1 <= n) ⇒ Mor (U n) (U n)
 toNil = Mor $ 0 ⊙ pr2' @J @n
 
 -- | decompose upper Cholesky factor into diagonal and nilpotent parts
-decomposeChol ∷ (KnownNat n, 1 <= n) ⇒ Mor (Σp n) (ℝp n, U n)
+decomposeChol ∷ ∀ n. (KnownNat n, 1 <= n) ⇒ Mor (Σp n) (ℝp n, U n)
 decomposeChol = toDiag × (toNil . chol)
 
 -- | inverse of 'decomposeChol'
 composeChol ∷ ∀ n. (KnownNat n, 1 <= n) ⇒ Mor (ℝp n, U n) (Σp n)
 composeChol = Mor $ bimap' @J @n @(n + (n * (n - 1)) `Div` 2) id (pr2' @J @n)
 
+instance (KnownNat n, 1 <= n) ⇒ Invol (Σ  n)
+instance (KnownNat n, 1 <= n) ⇒ Invol (U  n)
+
+instance (KnownNat n, 1 <= n) ⇒ Invol (Σp n) where
+    invol = composeChol . f . decomposeChol
+              where
+                f ∷ Mor (ℝp n, U n) (ℝp n, U n)
+                f = let n = intVal @n 
+                     in fromPoints2 $ \d u → let di = invol ▶ d
+                                                 di'= fromDiag @(U n) ▶ emb ▶ di
+                                                 v  = invol ▶ (di' ◀ mul $ (toNil ▶ u)) -- -D^{-1} U_nil
+                                                 go 1 = v
+                                                 go k = v ◀ add $ (v ◀ mul $ go (k-1))
+                                                 ui = di' ◀ mul $ go (n-1)              -- D^{-1} Σ_{0<k<n} (-D^{-1} U_nil)^k
+                                              in di × ui                                -- D^{-1} Σ_{k>=0}  (-D^{-1} U_nil)^k 
+                                                                                        -- = D^{-1} [ I + D^{-1} U ]^{-1} 
+                                                                                        -- = [ D + U ]^{-1}
 
