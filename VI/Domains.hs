@@ -41,8 +41,8 @@ module VI.Domains ( -- * Cartesian category of domains
                   , Concrete(..), getPoint
                     -- * Basic operations
                   , type(⊂)(..), type(≌)(..)
-                  , Based(..), Add(..), Ab(..), Mul(..), ScaleP(..), Scale(..), Lerp(..), Invol(..)
-                  , simplexProjection
+                  , Based(..), Add(..), Ab(..), Mul(..), AbM(..), ScaleP(..), Scale(..), Lerp(..), Invol(..)
+                  , gLog, gExp, simplexProjection
                     -- * Matrix operations
                     -- ** main
                   , tr, sym, triu, chol, inverseChol, mm, mTm
@@ -149,6 +149,14 @@ instance (KnownNat n, KnownNat m, KnownNat l, l ~ n + m) ⇒ (ℝ n, ℝ m)   �
 instance (KnownNat n, KnownNat m, KnownNat l, l ~ n + m) ⇒ (ℝp n, ℝp m) ≌ ℝp l
 instance (KnownNat n, KnownNat m, KnownNat l, l ~ n + m) ⇒ (I n, I m)   ≌ I  l
 
+instance Domain x ⇒ (Pt, x) ≌ x
+instance Domain x ⇒ (x, Pt) ≌ x
+instance (Domain x, Domain y, Domain z) ⇒ (x, (y, z)) ≌ ((x, y), z)
+
+instance (Domain x, Domain y) ⇒ (x, y) ≌ (y, x) where
+    iso = swap
+    osi = swap
+
 -- | Canonical subdomain embedding
 class (Domain x, Domain y) ⇒ x ⊂ y where
     emb ∷ Mor x y
@@ -194,6 +202,14 @@ instance (KnownNat n, KnownNat m, m ~ n + 1) ⇒ Concrete m (Δ n) where
     toConcrete      = emb @(ℝp m) . emb
     fromConcrete x  = Mor $ point (LA.tr (basisH @n) LA.#> log x)
 
+-- | geometric logarithm
+gLog ∷ KnownNat n ⇒ Mor (ℝp n) (ℝ n)
+gLog = Mor id
+
+-- | geometric exponential
+gExp ∷ KnownNat n ⇒ Mor (ℝ n) (ℝp n)
+gExp = Mor id
+
 -- | Additive domains 
 class Domain x ⇒ Add x where
     add ∷ Mor (x, x) x
@@ -226,6 +242,12 @@ class Add x ⇒ Ab x where
     sub ∷ Mor (x, x) x
     sub = add . bimap id neg
 
+-- | (multiplicative) Abelian domains
+class Mul x ⇒ AbM x where
+    rcp ∷ Mor x x
+    quo ∷ Mor (x, x) x
+    quo = mul . bimap id rcp
+
 instance {-# OVERLAPPABLE #-} Scale x ⇒ ScaleP x where
     scalep = scale . bimap emb id
 
@@ -244,6 +266,10 @@ instance KnownNat n ⇒ Mul (ℝ n) where
 
 instance KnownNat n ⇒ Mul (ℝp n) where
     mul = Mor $ fromPoints2' (+)
+
+instance KnownNat n ⇒ AbM (ℝp n) where
+    rcp = Mor $ fromPoints negate
+    quo = Mor $ fromPoints2' (-)
 
 instance KnownNat n ⇒ Mul (I n) where
     mul = Mor $ fromPoints2' $ \x y → x + y - log (1 + exp x + exp y)  

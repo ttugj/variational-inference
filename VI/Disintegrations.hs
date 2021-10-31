@@ -9,10 +9,10 @@ module VI.Disintegrations ( -- * Disintegrations
                             Disintegration(..), mix', (◎)
                           , Couple(..)
                             -- * Disintegrations over domains
-                          , Density(..), Sampler(..)  
+                          , Density(..), pseudoConditional, Sampler(..), push 
                           ) where
 
-import Prelude (($))
+import Prelude (($), undefined)
 
 import VI.Categories
 import VI.Jets
@@ -78,3 +78,26 @@ instance Disintegration Domain Mor Sampler where
     pushAL (Sampler s) = Sampler $ (assocL .) <$> s
     pushAR (Sampler s) = Sampler $ (assocR .) <$> s
     pushS  (Sampler s) = Sampler $ (swap   .) <$> s
+
+pseudoConditional ∷ (Domain y, Domain z) ⇒ Density x (y, z) → Density (x, y) z
+pseudoConditional (Density p) = Density $ p . assocR
+
+push ∷ ∀ (x ∷ Type) (y ∷ Type) (z ∷ Type). Mor y z → Sampler x y → Sampler x z
+push f (Sampler s) = witness f $ Sampler $ (f .) <$> s
+
+-- | This is the standard variational family, corresponding to a multivariate
+-- normal in canonical coordinates, parameterised by location and covariance.
+genericNormal ∷ Domain x ⇒ Couple Density Sampler (x, Σp (Dim x)) x
+genericNormal = undefined
+
+divergenceSample ∷ MonadRandom m ⇒ Couple Density Sampler t x → Density s x → m (Mor (t,s) (ℝ 1))
+divergenceSample (Couple (Density q) (Sampler s)) (Density p) = go <$> s where
+                                                                    -- q ∷ Mor (t,x) (ℝp 1) 
+                                                                    -- p ∷ Mor (s,x) (ℝp 1) 
+                                                                    -- φ ∷ Mor t x 
+                                                                    go φ = fromPoints2 $ \θ σ → let ξ = φ ▶ θ
+                                                                                                    π = σ ◀ p $ ξ
+                                                                                                    ρ = θ ◀ q $ ξ
+                                                                                                    d = ρ ◀ quo $ π
+                                                                                                 in gLog ▶ d 
+
