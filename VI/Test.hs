@@ -14,7 +14,7 @@ module VI.Test ( -- * General classes for tests
                , simplexRetractionT, simplexIntervalT
                , trInvolutiveT, symRetractionT
                , mmAssociativeT, mTmT
-               , mixSimplexIntervalT
+               , lerpSimplexIntervalT
                , inverseCholT
                  -- * Debugging
                , valueAtPoint, gradAtPoint, evalAtPoint, getMatrix, randomPoint
@@ -114,8 +114,8 @@ mmAssociativeT = (mm . (bimap mm id), mm . (bimap id mm) . asR)
 mTmT ∷ (KnownNat m, KnownNat n, 1 <= n) ⇒ Pair (M m n) (M n n)
 mTmT = (emb . mTm, mm . (bimap tr id) . (id × id))
 
-mixSimplexIntervalT ∷ Pair (I 1, (Δ 1, Δ 1)) (ℝp 1) 
-mixSimplexIntervalT = (pr1 . osi @(ℝp 1, ℝp 1) . emb @(Δ 1) @(ℝp 2) . mix, emb . mix @(I 1) . bimap id (bimap iso iso))
+lerpSimplexIntervalT ∷ Pair (I 1, (Δ 1, Δ 1)) (ℝp 1) 
+lerpSimplexIntervalT = (pr1 . osi @(ℝp 1, ℝp 1) . emb @(Δ 1) @(ℝp 2) . lerp, emb . lerp @(I 1) . bimap id (bimap iso iso))
 
 inverseCholT ∷ ∀ n. (KnownNat n, 1 <= n) ⇒ Pair (Σp n) (U n)
 inverseCholT = (mul . (inverseChol × chol), chol . basePt . terminal)

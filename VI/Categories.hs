@@ -7,7 +7,7 @@
 module VI.Categories ( -- * Categories
                        Cat(..), Unconstrained, Terminal(..)
                        -- * Cartesian categories
-                     , Cart(..), bimap
+                     , Cart(..), bimap, assocR, assocL, swap
                      , Cart'(..), bimap'
                        -- * Pointed/point-free conversion
                      , fromPoints, toPoints, fromPoints2, toPoints2, fromPoints2', toPoints2', fromPoints3, fromPoints3'
@@ -21,7 +21,6 @@ module VI.Categories ( -- * Categories
 import Prelude (otherwise, error)
 
 import Data.Kind
-import Data.Tuple
 import Data.Functor
 import Data.Proxy
 import Control.Applicative
@@ -31,6 +30,7 @@ import GHC.Num
 import GHC.TypeLits
 import Data.Function (($))
 import qualified Data.Function as F
+import qualified Data.Tuple as T
 import qualified Data.Vector.Storable as V
 import qualified Data.List as L
 
@@ -42,39 +42,45 @@ instance Unconstrained x
 class Cat (ob ∷ k → Constraint) (c ∷ k → k → Type) | c → ob where
     id ∷ ob x ⇒ c x x
     (.) ∷ c y z → c x y → c x z
+    -- | Use a morphism @x → y@ in @c@ as a witness of @(ob x, ob y)@
+    witness ∷ c x y → ((ob x, ob y) ⇒ a) → a
 
 instance Cat Unconstrained (->) where
     id = F.id
     (.) = (F..)
+    witness _ a = a
 
 -- | Cartesian structure (with free product)
 class Cat ob c ⇒ Cart ob c where
     pr1 ∷ (ob x, ob y) ⇒ c (x,y) x
     pr2 ∷ (ob x, ob y) ⇒ c (x,y) y
-    (×) ∷ c x y → c x y' → c x (y,y')
-    asR ∷ (ob x, ob y, ob z) ⇒ c ((x,y),z) (x,(y,z))
-    asL ∷ (ob x, ob y, ob z) ⇒ c (x,(y,z)) ((x,y),z)
+    (×) ∷ c x y → c x y' → c x (y,y')                 -- ^K \/
 
 instance Cart Unconstrained (->) where
-    pr1 = fst
-    pr2 = snd
+    pr1 = T.fst
+    pr2 = T.snd
     f × g = (,) <$> f <*> g
-    asR ((x,y),z) = (x,(y,z))
-    asL (x,(y,z)) = ((x,y),z)
 
-bimap ∷ (Cart ob c, ob x, ob x') 
-      ⇒ c x y → c x' y' → c (x,x') (y,y')
-bimap f g = (f . pr1) × (g . pr2)
+assocR ∷ (Cart ob c, ob x, ob y, ob z, ob (x,y), ob (y,z)) ⇒ c ((x,y),z) (x,(y,z))
+assocR = (pr1 . pr1) × ((pr2 . pr1) × pr2)
+
+assocL ∷ (Cart ob c, ob x, ob y, ob z, ob (x,y), ob (y,z)) ⇒ c (x,(y,z)) ((x,y),z)
+assocL = (pr1 × (pr1 . pr2) × (pr2 . pr2))
+
+swap  ∷ (Cart ob c, ob x, ob y) ⇒ c (x,y) (y,x)
+swap  = pr2 × pr1
+
+bimap ∷ Cart ob c ⇒ c x y → c x' y' → c (x,x') (y,y')
+bimap f g = witness f $ witness g $ (f . pr1) × (g . pr2)
 
 -- | Cartesian structure (for a category on 'Nat's, with '+' as product)
 class Cat KnownNat (c ∷ Nat → Nat → Type) ⇒ Cart' c where
     pr1' ∷ (KnownNat n, KnownNat m) ⇒ c (n + m) n
     pr2' ∷ (KnownNat n, KnownNat m) ⇒ c (n + m) m
-    (⊙)  ∷ c n m → c n m' → c n (m + m')
+    (⊙)  ∷ c n m → c n m' → c n (m + m')                -- ^K 0.
 
-bimap' ∷ ∀ c x x' y y'. (Cart' c, KnownNat x, KnownNat x')
-       ⇒ c x y → c x' y' → c (x + x') (y + y')
-bimap' f g = (f . pr1') ⊙ (g . pr2')
+bimap' ∷ ∀ c x x' y y'. Cart' c ⇒ c x y → c x' y' → c (x + x') (y + y')
+bimap' f g = witness f $ witness g $ (f . pr1') ⊙ (g . pr2')
 
 fromPoints ∷ (Cat ob c, ob x, ob y) 
            ⇒ (∀ t. ob t ⇒ c t x → c t y) → c x y
@@ -142,6 +148,7 @@ instance Cat KnownNat Fin' where
     id ∷ ∀ n. KnownNat n ⇒ Fin' n n
     id = Fin' $ V.generate (intVal @n) id
     Fin' j . Fin' k = Fin' $ V.map (k V.!) j
+    witness (Fin' _) a = a
 
 instance Cart' Fin' where
     pr1' ∷ ∀ n m. (KnownNat n, KnownNat m) ⇒ Fin' (n + m) n

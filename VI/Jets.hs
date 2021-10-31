@@ -48,6 +48,7 @@ instance Cat KnownNat J where
     J φ . J ψ = J $ \x → let (y, dψ) = ψ x
                              (z, dφ) = φ y
                           in (z, dψ . dφ)
+    witness (J _) a = a
 
 instance Cart' J where
     pr1' ∷ ∀ n m. (KnownNat n, KnownNat m) ⇒ J (n + m) n

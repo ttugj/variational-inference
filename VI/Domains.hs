@@ -41,7 +41,7 @@ module VI.Domains ( -- * Cartesian category of domains
                   , Concrete(..), getPoint
                     -- * Basic operations
                   , type(⊂)(..), type(≌)(..)
-                  , Based(..), Add(..), Ab(..), Mul(..), ScaleP(..), Scale(..), Mix(..), Invol(..)
+                  , Based(..), Add(..), Ab(..), Mul(..), ScaleP(..), Scale(..), Lerp(..), Invol(..)
                   , simplexProjection
                     -- * Matrix operations
                     -- ** main
@@ -88,6 +88,7 @@ data Mor x y = Mor (J (Dim x) (Dim y))
 instance Cat Domain Mor where
     id = Mor id
     Mor φ . Mor ψ = Mor (φ . ψ)
+    witness (Mor (J _)) a = a
 
 instance Cart Domain Mor where
     pr1 ∷ ∀ x y. (Domain x, Domain y, Domain (x,y)) ⇒ Mor (x,y) x
@@ -95,8 +96,6 @@ instance Cart Domain Mor where
     pr2 ∷ ∀ x y. (Domain x, Domain y, Domain (x,y)) ⇒ Mor (x,y) y
     pr2 = Mor pr2' 
     Mor φ × Mor ψ = Mor (φ ⊙ ψ)
-    asR = Mor id
-    asL = Mor id
 
 data Pt
 data ℝ  (n ∷ Nat)
@@ -204,8 +203,8 @@ class Domain x ⇒ Mul x where
     mul ∷ Mor (x, x) x
 
 -- | Convex domains
-class Domain x ⇒ Mix x where
-    mix ∷ Mor (I 1, (x, x)) x
+class Domain x ⇒ Lerp x where
+    lerp ∷ Mor (I 1, (x, x)) x
 
 -- | Conical domains
 class Domain x ⇒ ScaleP x where
@@ -354,27 +353,27 @@ instance (KnownNat n, 1 <= n) ⇒ Scale (Σ n) where
 instance (KnownNat n, 1 <= n) ⇒ Scale (U n) where
     scale  = Mor $ fromPoints2' $ \c x → (expand ▶ c) * x
 
-instance {-# OVERLAPPABLE #-} (ScaleP x, Add x) ⇒ Mix x where
-    mix = fromPoints3 $ \c x x' → let k  = emb ▶ c
-                                      k' = emb ▶ invol ▶ c
-                                      y  = k  ◀ scalep $ x'
-                                      y' = k' ◀ scalep $ x
-                                   in y ◀ add $ y'
+instance {-# OVERLAPPABLE #-} (ScaleP x, Add x) ⇒ Lerp x where
+    lerp = fromPoints3 $ \c x x' → let k  = emb ▶ c
+                                       k' = emb ▶ invol ▶ c
+                                       y  = k  ◀ scalep $ x'
+                                       y' = k' ◀ scalep $ x
+                                    in y ◀ add $ y'
 
-instance KnownNat n ⇒ Mix (Δ  n) where
-    mix = fromPoints3 $ \c x x' → let k  = emb ▶ c
-                                      k' = emb ▶ invol ▶ c
-                                      y  = k  ◀ scalep $ emb ▶ x'
-                                      y' = k' ◀ scalep $ emb ▶ x
-                                   in simplexProjection ▶ (y ◀ add $ y')
+instance KnownNat n ⇒ Lerp (Δ  n) where
+    lerp = fromPoints3 $ \c x x' → let k  = emb ▶ c
+                                       k' = emb ▶ invol ▶ c
+                                       y  = k  ◀ scalep $ emb ▶ x'
+                                       y' = k' ◀ scalep $ emb ▶ x
+                                    in simplexProjection ▶ (y ◀ add $ y')
 
-instance KnownNat n ⇒ Mix (I  n) where
-    mix = Mor $ fromPoints3' $ \c x x' → let e z = let w = exp z in w / (1 + w)
-                                             d   = e (expand ▶ c)
-                                             y   = e x
-                                             y'  = e x'
-                                             y'' = (1-d) * y + d * y'
-                                          in log $ y'' / (1 - y'')
+instance KnownNat n ⇒ Lerp (I  n) where
+    lerp = Mor $ fromPoints3' $ \c x x' → let e z = let w = exp z in w / (1 + w)
+                                              d   = e (expand ▶ c)
+                                              y   = e x
+                                              y'  = e x'
+                                              y'' = (1-d) * y + d * y'
+                                           in log $ y'' / (1 - y'')
 
 class Domain x ⇒ Square x where
     type Diag x
