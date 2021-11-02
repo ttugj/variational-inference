@@ -15,7 +15,7 @@ module VI.Test ( -- * General classes for tests
                , trInvolutiveT, symRetractionT
                , mmAssociativeT, mTmT
                , lerpSimplexIntervalT
-               , inverseCholT
+               , cholInverseT
                  -- * Debugging
                , valueAtPoint, gradAtPoint, evalAtPoint, getMatrix, randomPoint
                ) where
@@ -117,8 +117,8 @@ mmTT = (emb . mmT, mm . (bimap id tr) . (id × id))
 lerpSimplexIntervalT ∷ Pair (I 1, (Δ 1, Δ 1)) (ℝp 1) 
 lerpSimplexIntervalT = (pr1 . osi @(ℝp 1, ℝp 1) . emb @(Δ 1) @(ℝp 2) . lerp, emb . lerp @(I 1) . bimap id (bimap iso iso))
 
-inverseCholT ∷ ∀ n. (KnownNat n, 1 <= n) ⇒ Pair (Σp n) (Lo n)
-inverseCholT = (mul . (inverseChol × chol), chol . basePt . terminal)
+cholInverseT ∷ ∀ n. (KnownNat n, 1 <= n) ⇒ Pair (Σp n) (Lo n)
+cholInverseT = (mul . (cholInverse × chol), chol . basePt . terminal)
 
 valueAtPoint ∷ ∀ (x ∷ Type) (y ∷ Type) (n ∷ Nat) (m ∷ Nat). (Concrete n x, Concrete m y) ⇒ Mor x y → LA.R n → LA.R m
 valueAtPoint φ p = getPoint $ φ . fromConcrete p

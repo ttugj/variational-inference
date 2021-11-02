@@ -45,7 +45,7 @@ module VI.Domains ( -- * Cartesian category of domains
                   , logD, expD, simplexProjection
                     -- * Matrix operations
                     -- ** main
-                  , tr, sym, triu, chol, inverseChol, mm, mmT
+                  , tr, sym, triu, chol, cholInverse, cholDet, mm, mmT
                   , Square(..)
                     -- ** auxiliary
                   , toNil, decomposeChol, composeChol 
@@ -465,8 +465,8 @@ decomposeChol = toDiag × (toNil . chol)
 composeChol ∷ ∀ n. (KnownNat n, 1 <= n) ⇒ Mor (ℝp n, Lo n) (Σp n)
 composeChol = Mor $ bimap' @J @n @(n + (n * (n - 1)) `Div` 2) id (pr2' @J @n)
 
-inverseChol ∷ ∀ n. (KnownNat n, 1 <= n) ⇒ Mor (Σp n) (Lo n)
-inverseChol = chol . composeChol . f . decomposeChol
+cholInverse ∷ ∀ n. (KnownNat n, 1 <= n) ⇒ Mor (Σp n) (Lo n)
+cholInverse = chol . composeChol . f . decomposeChol
               where
                 f ∷ Mor (ℝp n, Lo n) (ℝp n, Lo n)
                 f = let n = intVal @n 
@@ -480,4 +480,7 @@ inverseChol = chol . composeChol . f . decomposeChol
                                               in di × ui                                 -- ( Σ_{k>=0}  (-D^{-1} U_nil)^k ) D^{-1}
                                                                                          -- = [ I + D^{-1} U_nil ]^{-1}  D^{-1}
                                                                                          -- = [ D + U_nil ]^{-1}
+
+cholDet ∷ ∀ n. (KnownNat n, 1 <= n) ⇒ Mor (Σp n) (ℝp 1)
+cholDet = Mor $ linear (LA.konst 1) . pr1' @_ @n
 
