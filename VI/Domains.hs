@@ -28,24 +28,24 @@ module VI.Domains ( -- * Cartesian category of domains
 -- [@I n@] Positive unit cube in R^n, with elementwise logit coordinate.
 -- [@Δ n@] The n-simplex in R^{n+1}, with coordinate p -> log p - 1/(n+1) Σ log p mapping onto the hyperplane orthogonal to (1,...,1) in R^{n+1}.
 -- [@M n m@] All n × m matrices, identified with R^{nm} with row-major order.
--- [@U n@] Upper-triangular n × n matrices, indentified with R^{(n(n+1)/2} with diag-major order.
--- [@Σ n@] Symmetric n × n matrices, identified with R^{n(n+1)/2} using upper triangular part.
--- [@Σp n@] Positive n × n matrices, identified with R^{n(n+1)/2} using upper triangular Cholesky factor, with logarithm applied to diagonal elements.
+-- [@Lo n@] Lower-triangular n × n matrices, indentified with R^{(n(n+1)/2} with diag-major order.
+-- [@Σ n@] Symmetric n × n matrices, identified with R^{n(n+1)/2} using lower triangular part.
+-- [@Σp n@] Positive n × n matrices, identified with R^{n(n+1)/2} using lower triangular Cholesky factor, with logarithm applied to diagonal elements.
 --
 -- The latter three require 1 <= n to make KnownNat inference simpler. 
 --
                     Dim, Domain, Mor(..)
                     -- * Basic domains
-                  , Pt, ℝ, ℝp, I, Δ, M, Σ, Σp, U
+                  , Pt, ℝ, ℝp, I, Δ, M, Σ, Σp, Lo
                     -- * Concrete presentation
                   , Concrete(..), getPoint
                     -- * Basic operations
                   , type(⊂)(..), type(≌)(..)
                   , Based(..), Add(..), Ab(..), Mul(..), AbM(..), ScaleP(..), Scale(..), Lerp(..), Invol(..)
-                  , gLog, gExp, simplexProjection
+                  , logD, expD, simplexProjection
                     -- * Matrix operations
                     -- ** main
-                  , tr, sym, triu, chol, inverseChol, mm, mTm
+                  , tr, sym, triu, chol, inverseChol, mm, mmT
                   , Square(..)
                     -- ** auxiliary
                   , toNil, decomposeChol, composeChol 
@@ -105,7 +105,7 @@ data Δ  (n ∷ Nat)
 data M  (m ∷ Nat) (n ∷ Nat)
 data Σ  (n ∷ Nat)
 data Σp (n ∷ Nat)
-data U  (n ∷ Nat)
+data Lo (n ∷ Nat)
 
 type instance Dim Pt       = 0
 type instance Dim (ℝ  n  ) = n
@@ -115,7 +115,7 @@ type instance Dim (Δ  n  ) = n
 type instance Dim (M  m n) = m * n
 type instance Dim (Σ  n  ) = n + ((n * (n - 1)) `Div` 2)
 type instance Dim (Σp n  ) = n + ((n * (n - 1)) `Div` 2)
-type instance Dim (U  n  ) = n + ((n * (n - 1)) `Div` 2)
+type instance Dim (Lo n  ) = n + ((n * (n - 1)) `Div` 2)
 
 -- | Concrete presentation
 class (Domain x, KnownNat n) ⇒ Concrete (n ∷ Nat) (x ∷ Type) | x → n where
@@ -180,14 +180,14 @@ instance KnownNat n ⇒ I n ⊂ ℝp n where
 instance (KnownNat n, 1 <= n) ⇒ Σ n ⊂ M n n where
     emb = let n = intVal @n in Mor . law . mkFin' $ uncurry (ixΣ n) <$> lixM n n
 
-instance (KnownNat n, 1 <= n) ⇒ U n ⊂ M n n where
+instance (KnownNat n, 1 <= n) ⇒ Lo n ⊂ M n n where
     emb = let n = intVal @n 
-              ι ∷ J ((Dim (U n)) + 1) (Dim (M n n))
-              ι = law . mkFin' $ fromMaybe ((n*(n+1)) `div` 2) . uncurry (ixU n) <$> lixM n n 
+              ι ∷ J ((Dim (Lo n)) + 1) (Dim (M n n))
+              ι = law . mkFin' $ fromMaybe ((n*(n+1)) `div` 2) . uncurry (ixLo n) <$> lixM n n 
            in Mor $ ι . (id ⊙ 0)
 
--- | Upper-triangular Cholesky factor
-chol ∷ ∀ n. (KnownNat n, 1 <= n) ⇒ Mor (Σp n) (U n)
+-- | Lower-triangular Cholesky factor
+chol ∷ ∀ n. (KnownNat n, 1 <= n) ⇒ Mor (Σp n) (Lo n)
 chol = Mor $ bimap' @J @n @((n * (n - 1)) `Div` 2) (fromPoints exp) id
 
 instance KnownNat n ⇒ Concrete n (ℝp n) where
@@ -202,13 +202,13 @@ instance (KnownNat n, KnownNat m, m ~ n + 1) ⇒ Concrete m (Δ n) where
     toConcrete      = emb @(ℝp m) . emb
     fromConcrete x  = Mor $ point (LA.tr (basisH @n) LA.#> log x)
 
--- | geometric logarithm
-gLog ∷ KnownNat n ⇒ Mor (ℝp n) (ℝ n)
-gLog = Mor id
+-- | logarithm
+logD ∷ KnownNat n ⇒ Mor (ℝp n) (ℝ n)
+logD = Mor id
 
--- | geometric exponential
-gExp ∷ KnownNat n ⇒ Mor (ℝ n) (ℝp n)
-gExp = Mor id
+-- | exponential
+expD ∷ KnownNat n ⇒ Mor (ℝ n) (ℝp n)
+expD = Mor id
 
 -- | Additive domains 
 class Domain x ⇒ Add x where
@@ -317,10 +317,10 @@ instance (KnownNat n, 1 <= n) ⇒ Ab (Σ n) where
     neg = Mor $ fromPoints negate
     sub = Mor $ fromPoints2' (-)
 
-instance (KnownNat n, 1 <= n) ⇒ Add (U n) where
+instance (KnownNat n, 1 <= n) ⇒ Add (Lo n) where
     add = Mor $ fromPoints2' (+)
 
-instance (KnownNat n, 1 <= n) ⇒ Ab (U n) where
+instance (KnownNat n, 1 <= n) ⇒ Ab (Lo n) where
     neg = Mor $ fromPoints negate
     sub = Mor $ fromPoints2' (-)
 
@@ -331,15 +331,15 @@ tr = let n = intVal @n
       in Mor . law $ mkFin' $ uncurry (flip (ixM n)) <$> lixM n m      
 
 
--- | produce a symmetric matrix using the upper triangular part
+-- | produce a symmetric matrix using the lower triangular part
 sym ∷ ∀ n. (KnownNat n, 1 <= n) ⇒ Mor (M n n) (Σ n)
 sym = let n = intVal @n
        in Mor . law $ mkFin' $ uncurry (ixM n) <$> lixΣ n
 
--- | extract the upper triangular part
-triu ∷ ∀ n. (KnownNat n, 1 <= n) ⇒ Mor (M n n) (U n)
+-- | extract the lower triangular part
+triu ∷ ∀ n. (KnownNat n, 1 <= n) ⇒ Mor (M n n) (Lo n)
 triu = let n = intVal @n
-        in Mor . law $ mkFin' $ uncurry (ixM n) <$> lixU n   
+        in Mor . law $ mkFin' $ uncurry (ixM n) <$> lixLo n   
 
 -- | matrix multiply
 mm ∷ ∀ m n l. (KnownNat m, KnownNat n, KnownNat l) ⇒ Mor (M m n, M n l) (M m l)
@@ -357,17 +357,17 @@ mm = let m = intVal @m
                                     in dx
                          in (y, g)
 
--- | produce a symmetric matrix, mapping a to a^T a
-mTm ∷ ∀ m n. (KnownNat m, KnownNat n, 1 <= n) ⇒ Mor (M m n) (Σ n)
-mTm = sym . mm @n @m @n . bimap tr id . (id × id)
+-- | produce a symmetric matrix, mapping a to a a^T
+mmT ∷ ∀ m n. (KnownNat m, KnownNat n, 1 <= n) ⇒ Mor (M n m) (Σ n)
+mmT = sym . mm @n @m @n . bimap id tr . (id × id)
 
 instance (KnownNat n, 1 <= n) ⇒ Σp n ⊂ Σ n where
-    emb = mTm @n @n  . emb . chol    -- we factor Σp n ⊂ Σ n through the space of upper-triangular matrices
+    emb = mmT @n @n  . emb . chol    -- we factor Σp n ⊂ Σ n through the space of lower-triangular matrices
 
 instance KnownNat n ⇒ Mul (M n n) where
     mul = mm
 
-instance (KnownNat n,  1 <= n) ⇒ Mul (U n) where
+instance (KnownNat n,  1 <= n) ⇒ Mul (Lo n) where
     mul = triu . mm @n @n @n . bimap emb emb
 
 instance (KnownNat m, KnownNat n) ⇒ Scale (M m n) where
@@ -376,7 +376,7 @@ instance (KnownNat m, KnownNat n) ⇒ Scale (M m n) where
 instance (KnownNat n, 1 <= n) ⇒ Scale (Σ n) where
     scale  = Mor $ fromPoints2' $ \c x → (expand ▶ c) * x
 
-instance (KnownNat n, 1 <= n) ⇒ Scale (U n) where
+instance (KnownNat n, 1 <= n) ⇒ Scale (Lo n) where
     scale  = Mor $ fromPoints2' $ \c x → (expand ▶ c) * x
 
 instance {-# OVERLAPPABLE #-} (ScaleP x, Add x) ⇒ Lerp x where
@@ -406,8 +406,8 @@ class Domain x ⇒ Square x where
     toDiag      ∷ Mor x (Diag x)
     fromDiag    ∷ Mor (Diag x) x
 
-instance (KnownNat n, 1 <= n) ⇒ Square (U n) where
-    type Diag (U n) = ℝ n
+instance (KnownNat n, 1 <= n) ⇒ Square (Lo n) where
+    type Diag (Lo n) = ℝ n
     toDiag = Mor $ pr1' @_ @n
     fromDiag = Mor $ id ⊙ 0
 
@@ -432,7 +432,7 @@ instance KnownNat n ⇒ Based (ℝp n)
 instance KnownNat n ⇒ Based (Δ  n)
 instance KnownNat n ⇒ Based (I  n)
 instance (KnownNat n, 1 <= n) ⇒ Based (Σ  n)
-instance (KnownNat n, 1 <= n) ⇒ Based (U  n)
+instance (KnownNat n, 1 <= n) ⇒ Based (Lo n)
 instance (KnownNat n, 1 <= n) ⇒ Based (Σp n)
 
 
@@ -454,25 +454,25 @@ instance (KnownNat n, 1 <= n) ⇒ ScaleP (Σp n) where
                                           in y0 ⊙ y1  
 
 -- | take nilpotent part (i.e. put zeroes on diagonal)
-toNil ∷ ∀ n. (KnownNat n, 1 <= n) ⇒ Mor (U n) (U n)
+toNil ∷ ∀ n. (KnownNat n, 1 <= n) ⇒ Mor (Lo n) (Lo n)
 toNil = Mor $ 0 ⊙ pr2' @J @n
 
--- | decompose upper Cholesky factor into diagonal and nilpotent parts
-decomposeChol ∷ ∀ n. (KnownNat n, 1 <= n) ⇒ Mor (Σp n) (ℝp n, U n)
+-- | decompose lower Cholesky factor into diagonal and nilpotent parts
+decomposeChol ∷ ∀ n. (KnownNat n, 1 <= n) ⇒ Mor (Σp n) (ℝp n, Lo n)
 decomposeChol = toDiag × (toNil . chol)
 
 -- | inverse of 'decomposeChol'
-composeChol ∷ ∀ n. (KnownNat n, 1 <= n) ⇒ Mor (ℝp n, U n) (Σp n)
+composeChol ∷ ∀ n. (KnownNat n, 1 <= n) ⇒ Mor (ℝp n, Lo n) (Σp n)
 composeChol = Mor $ bimap' @J @n @(n + (n * (n - 1)) `Div` 2) id (pr2' @J @n)
 
-inverseChol ∷ ∀ n. (KnownNat n, 1 <= n) ⇒ Mor (Σp n) (U n)
+inverseChol ∷ ∀ n. (KnownNat n, 1 <= n) ⇒ Mor (Σp n) (Lo n)
 inverseChol = chol . composeChol . f . decomposeChol
               where
-                f ∷ Mor (ℝp n, U n) (ℝp n, U n)
+                f ∷ Mor (ℝp n, Lo n) (ℝp n, Lo n)
                 f = let n = intVal @n 
                      in fromPoints2 $ \d u → let di   = invol ▶ d
                                                  di'  = emb @(ℝp n) @(ℝ n) ▶ di
-                                                 di'' = fromDiag @(U n) ▶ di'
+                                                 di'' = fromDiag @(Lo n) ▶ di'
                                                  v    = neg ▶ (di'' ◀ mul $ (toNil ▶ u)) -- -D^{-1} U_nil
                                                  go 1 = v
                                                  go k = v ◀ add $ (v ◀ mul $ go (k-1))

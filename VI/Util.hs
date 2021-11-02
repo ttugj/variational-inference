@@ -7,7 +7,7 @@
 module VI.Util ( 
         -- |
         -- This module collects certain data that actually needs to be computed.
-                 ixM, ixΣ, ixU, lixM, lixΣ, lixU, basisH 
+                 ixM, ixΣ, ixLo, lixM, lixΣ, lixLo, basisH 
                , fromLtoR, fromRtoL
                ) where
 
@@ -28,21 +28,21 @@ ixM ∷ Int → Int → Int → Int
 ixM n i j = n*i + j
 
 ixΣ ∷ Int → Int → Int → Int
-ixΣ n i j | i <= j    = fromJust $ ixU n i j
-          | otherwise = fromJust $ ixU n j i
+ixΣ n i j | j <= i    = fromJust $ ixLo n i j
+          | otherwise = fromJust $ ixLo n j i
 
-ixU ∷ Int → Int → Int → Maybe Int
-ixU n i j | i <= j      = let d = j-i
-                              k = n-d
-                           in Just $ n*(n+1) `div` 2 - k*(k+1) `div` 2 + i 
-          | otherwise   = Nothing
+ixLo ∷ Int → Int → Int → Maybe Int
+ixLo n i j | j <= i      = let d = i-j
+                               k = n-d
+                            in Just $ n*(n+1) `div` 2 - k*(k+1) `div` 2 + j 
+           | otherwise   = Nothing
 
 lixM ∷ Int → Int → [(Int,Int)]
 lixM n m = [(i,j) | i ← [0..n-1], j ← [0..m-1]]
 
-lixΣ, lixU ∷ Int → [(Int,Int)]
-lixU n = [(e,e+d) | d ← [0..n-1], e ← [0..n-1-d]]
-lixΣ   = lixU
+lixΣ, lixLo ∷ Int → [(Int,Int)]
+lixLo n = [(e+d,e) | d ← [0..n-1], e ← [0..n-1-d]]
+lixΣ    = lixLo
 
 basisH ∷ ∀ n. KnownNat n ⇒ LA.L (n + 1) n 
 basisH = let n      = fromInteger (natVal (Proxy ∷ Proxy n))

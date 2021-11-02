@@ -9,7 +9,12 @@ module VI.Disintegrations ( -- * Disintegrations
                             Disintegration(..), mix', (◎)
                           , Couple(..)
                             -- * Disintegrations over domains
+                            -- ** general
                           , Density(..), pseudoConditional, Sampler(..), push 
+                            -- ** particular
+                          , gaussian 
+                            -- * Divergence
+                          , divergenceSample
                           ) where
 
 import Prelude (($), undefined)
@@ -24,7 +29,9 @@ import GHC.TypeLits
 
 import Data.Functor
 import Control.Applicative
-import Control.Monad.Random
+import Control.Monad
+import System.Random.Stateful
+import System.Random.MWC.Distributions
 
 -- | A minimal structure for building joint likelihoods
 class Cart ob c ⇒ Disintegration ob c p where
@@ -58,9 +65,12 @@ mix' μ ν = mix @ob @c μ (pull @ob @c pr2 ν)
 data Density x y where
     Density ∷ (Domain x, Domain y) ⇒ Mor (x, y) (ℝp 1) → Density x y
 
+class Monad m ⇒ SampleM m where
+    sample ∷ (∀ g. StatefulGen g m ⇒ g → m a) → m a
+
 -- | A reparameterisable sampler (with differentiable samples)
 data Sampler x y where
-    Sampler ∷ (Domain x, Domain y) ⇒ (∀ m. MonadRandom m ⇒ m (Mor x y)) → Sampler x y 
+    Sampler ∷ (Domain x, Domain y) ⇒ (∀ m. SampleM m ⇒ m (Mor x y)) → Sampler x y 
 
 instance Disintegration Domain Mor Density where
     pull f (Density p) = witness f $ Density $ p . bimap f id
@@ -85,19 +95,29 @@ pseudoConditional (Density p) = Density $ p . assocR
 push ∷ ∀ (x ∷ Type) (y ∷ Type) (z ∷ Type). Mor y z → Sampler x y → Sampler x z
 push f (Sampler s) = witness f $ Sampler $ (f .) <$> s
 
--- | This is the standard variational family, corresponding to a multivariate
--- normal in canonical coordinates, parameterised by location and covariance.
-genericNormal ∷ Domain x ⇒ Couple Density Sampler (x, Σp (Dim x)) x
-genericNormal = undefined
+{-
 
-divergenceSample ∷ MonadRandom m ⇒ Couple Density Sampler t x → Density s x → m (Mor (t,s) (ℝ 1))
+    x ~ N(0, I)
+    z = x₀ + L x ~ N(x₀, LL*)   ⇒ Σ = LL* 
+    
+    log p~(z) = log p(L⁻¹(z-x₀)) - log det L
+
+-}
+
+-- | General multivariate normal
+gaussian ∷ ∀ n. (KnownNat n, 1 <= n) ⇒ Couple Density Sampler (ℝ n, Σp n) (ℝ n)
+gaussian = Couple (Density p) (Sampler s) where
+            p = undefined
+            s = undefined
+
+divergenceSample ∷ SampleM m ⇒ Couple Density Sampler t x → Density s x → m (Mor (t,s) (ℝ 1))
 divergenceSample (Couple (Density q) (Sampler s)) (Density p) = go <$> s where
-                                                                    -- q ∷ Mor (t,x) (ℝp 1) 
-                                                                    -- p ∷ Mor (s,x) (ℝp 1) 
-                                                                    -- φ ∷ Mor t x 
-                                                                    go φ = fromPoints2 $ \θ σ → let ξ = φ ▶ θ
-                                                                                                    π = σ ◀ p $ ξ
-                                                                                                    ρ = θ ◀ q $ ξ
-                                                                                                    d = ρ ◀ quo $ π
-                                                                                                 in gLog ▶ d 
+                                                                     -- q ∷ Mor (t,x) (ℝp 1) 
+                                                                     -- p ∷ Mor (s,x) (ℝp 1) 
+                                                                     -- φ ∷ Mor t x 
+                                                                     go φ = fromPoints2 $ \θ σ → let ξ = φ ▶ θ
+                                                                                                     π = σ ◀ p $ ξ
+                                                                                                     ρ = θ ◀ q $ ξ
+                                                                                                     d = ρ ◀ quo $ π
+                                                                                                  in logD ▶ d 
 

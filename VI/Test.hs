@@ -109,15 +109,15 @@ symRetractionT ∷ (KnownNat n, 1 <= n) ⇒ Pair (Σ n) (Σ n)
 symRetractionT = (sym . emb, id)
 
 mmAssociativeT ∷ (KnownNat n, KnownNat m, KnownNat l, KnownNat k) ⇒ Pair ((M n m, M m l), M l k) (M n k)
-mmAssociativeT = (mm . (bimap mm id), mm . (bimap id mm) . asR)
+mmAssociativeT = (mm . (bimap mm id), mm . (bimap id mm) . assocR)
 
-mTmT ∷ (KnownNat m, KnownNat n, 1 <= n) ⇒ Pair (M m n) (M n n)
-mTmT = (emb . mTm, mm . (bimap tr id) . (id × id))
+mmTT ∷ (KnownNat m, KnownNat n, 1 <= n) ⇒ Pair (M m n) (M n n)
+mmTT = (emb . mmT, mm . (bimap id tr) . (id × id))
 
 lerpSimplexIntervalT ∷ Pair (I 1, (Δ 1, Δ 1)) (ℝp 1) 
 lerpSimplexIntervalT = (pr1 . osi @(ℝp 1, ℝp 1) . emb @(Δ 1) @(ℝp 2) . lerp, emb . lerp @(I 1) . bimap id (bimap iso iso))
 
-inverseCholT ∷ ∀ n. (KnownNat n, 1 <= n) ⇒ Pair (Σp n) (U n)
+inverseCholT ∷ ∀ n. (KnownNat n, 1 <= n) ⇒ Pair (Σp n) (Lo n)
 inverseCholT = (mul . (inverseChol × chol), chol . basePt . terminal)
 
 valueAtPoint ∷ ∀ (x ∷ Type) (y ∷ Type) (n ∷ Nat) (m ∷ Nat). (Concrete n x, Concrete m y) ⇒ Mor x y → LA.R n → LA.R m
