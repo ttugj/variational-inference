@@ -41,8 +41,8 @@ module VI.Domains ( -- * Cartesian category of domains
                   , Concrete(..), getPoint
                     -- * Basic operations
                   , type(⊂)(..), type(≌)(..)
-                  , Based(..), Add(..), Ab(..), Mul(..), AbM(..), ScaleP(..), Scale(..), Lerp(..), Invol(..)
-                  , logD, expD, simplexProjection
+                  , Based(..), Add(..), Ab(..), Mul(..), AbM(..), ScaleP(..), Scale(..), Lerp(..), Invol(..), Dot(..)
+                  , (∙), logD, expD, simplexProjection
                     -- * Matrix operations
                     -- ** main
                   , tr, sym, triu, chol, cholInverse, cholDet, mm, mmT
@@ -74,10 +74,10 @@ import GHC.Classes
 import GHC.Types
 
 -- | Dimension of a domain
-type family Dim (x ∷ k) ∷ Nat
+type family Dim x ∷ Nat
 
 type instance Dim (x,y) = (Dim x) + (Dim y)
-type instance Dim '()   = 0
+type instance Dim ()    = 0
 
 class    KnownNat (Dim x) ⇒ Domain x
 instance KnownNat (Dim x) ⇒ Domain x
@@ -247,6 +247,13 @@ class Mul x ⇒ AbM x where
     rcp ∷ Mor x x
     quo ∷ Mor (x, x) x
     quo = mul . bimap id rcp
+
+-- | notational convenience
+class (Domain x, Domain y, Domain z) ⇒ Dot x y z | x y → z where
+    dot ∷ Mor (x, y) z
+
+(∙) ∷ (Domain t, Dot x y z) ⇒ Mor t x → Mor t y → Mor t z -- Sb
+(∙) = toPoints2 dot
 
 instance {-# OVERLAPPABLE #-} Scale x ⇒ ScaleP x where
     scalep = scale . bimap emb id
