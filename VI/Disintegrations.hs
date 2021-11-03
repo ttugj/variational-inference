@@ -12,7 +12,7 @@ module VI.Disintegrations ( -- * Disintegrations
                             -- ** general
                           , Density(..), pseudoConditional, Sampler(..), push 
                             -- ** particular
-                          , gaussian 
+                          , gaussian, genericGaussian 
                             -- * Divergence
                           , divergenceSample
                           ) where
@@ -107,10 +107,10 @@ push f (Sampler s) = witness f $ Sampler $ (f .) <$> s
 
 {-
 
-    x ~ N(0, I)
-    z = x₀ + L x ~ N(x₀, LL*)   ⇒ Σ = LL* 
+    z ~ N(0, I)
+    x = x₀ + L z ~ N(x₀, LL*)
     
-    log p~(z) = log p(L⁻¹(z-x₀)) - log det L
+    log p~(x) = log p(L⁻¹(x-x₀)) - log det L
 
 -}
 
@@ -132,6 +132,18 @@ gaussian = Couple (Density p) (Sampler s) where
             s = do
                    z ← sample $ \g → fromJust @(LA.R n) . LA.create <$> G.replicateM (intVal @n) (MWC.standard g) 
                    return $ fromPoints2 $ \loc cov → ((chol ▶ cov) ∙ (fromConcrete @n @(ℝ n) z . terminal)) ◀ add $ loc 
+
+-- | This is the default variational family, employing a multivariate normal in the canonical coordinates on a domain.
+genericGaussian ∷ ∀ x n. (Domain x, n ~ Dim x, 1 <= n) ⇒ Couple Density Sampler (x, Σp n) x
+genericGaussian = case gaussian @n of
+                     Couple (Density p) (Sampler s) → let p' = p . bimap (bimap f id) f
+                                                          s' ∷ ∀ m. SampleM m ⇒ m (Mor (x, Σp n) x)  
+                                                          s' = s >>= \φ → return (g . φ . bimap f id)
+                                                       in Couple (Density p') (Sampler s')
+                    where
+                      f = (Mor id) ∷ Mor x (ℝ n)
+                      g = (Mor id) ∷ Mor (ℝ n) x
+                     
 
 divergenceSample ∷ SampleM m ⇒ Couple Density Sampler t x → Density s x → m (Mor (t,s) (ℝ 1))
 divergenceSample (Couple (Density q) (Sampler s)) (Density p) = go <$> s where
