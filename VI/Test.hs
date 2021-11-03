@@ -13,7 +13,7 @@ module VI.Test ( -- * General classes for tests
                , Pair
                , simplexRetractionT, simplexIntervalT
                , trInvolutiveT, symRetractionT
-               , mmAssociativeT, mTmT
+               , mmAssociativeT, mmTT
                , lerpSimplexIntervalT
                , cholInverseT
                  -- * Debugging
@@ -111,7 +111,7 @@ symRetractionT = (sym . emb, id)
 mmAssociativeT ∷ (KnownNat n, KnownNat m, KnownNat l, KnownNat k) ⇒ Pair ((M n m, M m l), M l k) (M n k)
 mmAssociativeT = (mm . (bimap mm id), mm . (bimap id mm) . assocR)
 
-mmTT ∷ (KnownNat m, KnownNat n, 1 <= n) ⇒ Pair (M m n) (M n n)
+mmTT ∷ (KnownNat m, KnownNat n, 1 <= n) ⇒ Pair (M n m) (M n n)
 mmTT = (emb . mmT, mm . (bimap id tr) . (id × id))
 
 lerpSimplexIntervalT ∷ Pair (I 1, (Δ 1, Δ 1)) (ℝp 1) 
