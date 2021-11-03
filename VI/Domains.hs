@@ -1,4 +1,4 @@
-{-# LANGUAGE UnicodeSyntax, PolyKinds, DataKinds, TypeFamilies, TypeOperators, GADTs, ConstraintKinds, TypeApplications, AllowAmbiguousTypes, NoImplicitPrelude, UndecidableInstances, NoStarIsType, MultiParamTypeClasses, FlexibleInstances, FlexibleContexts, LiberalTypeSynonyms, ScopedTypeVariables, InstanceSigs, DefaultSignatures, FunctionalDependencies #-}
+{-# LANGUAGE UnicodeSyntax, PolyKinds, DataKinds, TypeFamilies, TypeOperators, GADTs, ConstraintKinds, TypeApplications, AllowAmbiguousTypes, NoImplicitPrelude, UndecidableInstances, NoStarIsType, MultiParamTypeClasses, FlexibleInstances, FlexibleContexts, LiberalTypeSynonyms, ScopedTypeVariables, InstanceSigs, DefaultSignatures, FunctionalDependencies, IncoherentInstances #-}
 
 {-# OPTIONS_GHC -fplugin GHC.TypeLits.Extra.Solver #-}
 {-# OPTIONS_GHC -fplugin GHC.TypeLits.KnownNat.Solver #-}
@@ -38,14 +38,14 @@ module VI.Domains ( -- * Cartesian category of domains
                     -- * Basic domains
                   , Pt, ℝ, ℝp, I, Δ, M, Σ, Σp, Lo
                     -- * Concrete presentation
-                  , Concrete(..), getPoint
+                  , Concrete(..), getPoint, real, realp
                     -- * Basic operations
                   , type(⊂)(..), type(≌)(..)
                   , Based(..), Add(..), Ab(..), Mul(..), AbM(..), ScaleP(..), Scale(..), Lerp(..), Invol(..), Dot(..)
                   , (∙), logD, expD, simplexProjection
                     -- * Matrix operations
                     -- ** main
-                  , tr, sym, triu, chol, cholInverse, cholDet, mm, mmT
+                  , tr, sym, tril, chol, cholInverse, cholDet, mm, mmT
                   , Square(..)
                     -- ** auxiliary
                   , toNil, decomposeChol, composeChol 
@@ -74,12 +74,12 @@ import GHC.Classes
 import GHC.Types
 
 -- | Dimension of a domain
-type family Dim x ∷ Nat
+type family Dim (x ∷ Type) ∷ Nat
 
 type instance Dim (x,y) = (Dim x) + (Dim y)
 type instance Dim ()    = 0
 
-class    KnownNat (Dim x) ⇒ Domain x
+class    KnownNat (Dim x) ⇒ Domain (x ∷ Type)
 instance KnownNat (Dim x) ⇒ Domain x
 
 -- | Morphisms between domains
@@ -118,7 +118,7 @@ type instance Dim (Σp n  ) = n + ((n * (n - 1)) `Div` 2)
 type instance Dim (Lo n  ) = n + ((n * (n - 1)) `Div` 2)
 
 -- | Concrete presentation
-class (Domain x, KnownNat n) ⇒ Concrete (n ∷ Nat) (x ∷ Type) | x → n where
+class (Domain x, KnownNat n) ⇒ Concrete (n ∷ Nat) x | x → n where
     toConcrete      ∷ Mor x (ℝ n)    
     fromConcrete    ∷ LA.R n → Mor Pt x
 
@@ -130,10 +130,17 @@ instance KnownNat n ⇒ Concrete n (ℝ n) where
     toConcrete      = id
     fromConcrete x  = Mor $ point x
    
-getPoint ∷ ∀ (n ∷ Nat) (x ∷ Type). Concrete n x ⇒ Mor Pt x → LA.R n
+getPoint ∷ ∀ (n ∷ Nat) x. Concrete n x ⇒ Mor Pt x → LA.R n
 getPoint p = let Mor (J f) = toConcrete . p
                  (y, _)    = f undefined
               in y
+
+real ∷ ∀ t.  Domain t ⇒ Double → Mor t (ℝ 1) 
+real x = Mor $ point $ LA.konst x
+
+realp ∷ ∀ t. Domain t ⇒ Double → Mor t (ℝp 1) 
+realp x = Mor $ point $ LA.konst $ log x
+
 
 instance Terminal Mor Domain Pt where
     terminal = Mor 0
@@ -248,7 +255,7 @@ class Mul x ⇒ AbM x where
     quo ∷ Mor (x, x) x
     quo = mul . bimap id rcp
 
--- | notational convenience
+-- | Heavily overloaded dot operator for all multiplicative pairings 
 class (Domain x, Domain y, Domain z) ⇒ Dot x y z | x y → z where
     dot ∷ Mor (x, y) z
 
@@ -344,8 +351,8 @@ sym = let n = intVal @n
        in Mor . law $ mkFin' $ uncurry (ixM n) <$> lixΣ n
 
 -- | extract the lower triangular part
-triu ∷ ∀ n. (KnownNat n, 1 <= n) ⇒ Mor (M n n) (Lo n)
-triu = let n = intVal @n
+tril ∷ ∀ n. (KnownNat n, 1 <= n) ⇒ Mor (M n n) (Lo n)
+tril = let n = intVal @n
         in Mor . law $ mkFin' $ uncurry (ixM n) <$> lixLo n   
 
 -- | matrix multiply
@@ -364,6 +371,21 @@ mm = let m = intVal @m
                                     in dx
                          in (y, g)
 
+instance (KnownNat m, KnownNat n, KnownNat l) ⇒ Dot (M m n) (M n l) (M m l) where
+    dot = mm
+
+instance KnownNat n ⇒ M n 1 ≌ ℝ n
+instance {-# OVERLAPPABLE #-} KnownNat n ⇒ M 1 n ≌ ℝ n
+
+instance (KnownNat m, KnownNat n) ⇒ Dot (M m n) (ℝ n) (ℝ m) where
+    dot = iso . mm @m @n @1 . bimap id osi
+
+instance (KnownNat m, KnownNat n) ⇒ Dot (ℝ m) (M m n) (ℝ n) where
+    dot = iso . mm @1 @m @n . bimap osi id 
+
+instance KnownNat n ⇒ Dot (ℝ n) (ℝ n) (ℝ 1) where
+    dot = iso . mm @1 @n @1 . bimap osi osi
+
 -- | produce a symmetric matrix, mapping a to a a^T
 mmT ∷ ∀ m n. (KnownNat m, KnownNat n, 1 <= n) ⇒ Mor (M n m) (Σ n)
 mmT = sym . mm @n @m @n . bimap id tr . (id × id)
@@ -375,7 +397,7 @@ instance KnownNat n ⇒ Mul (M n n) where
     mul = mm
 
 instance (KnownNat n,  1 <= n) ⇒ Mul (Lo n) where
-    mul = triu . mm @n @n @n . bimap emb emb
+    mul = tril . mm @n @n @n . bimap emb emb
 
 instance (KnownNat m, KnownNat n) ⇒ Scale (M m n) where
     scale  = Mor $ fromPoints2' $ \c x → (expand ▶ c) * x
@@ -472,6 +494,7 @@ decomposeChol = toDiag × (toNil . chol)
 composeChol ∷ ∀ n. (KnownNat n, 1 <= n) ⇒ Mor (ℝp n, Lo n) (Σp n)
 composeChol = Mor $ bimap' @J @n @(n + (n * (n - 1)) `Div` 2) id (pr2' @J @n)
 
+-- | inverse of the lower Cholesky factor
 cholInverse ∷ ∀ n. (KnownNat n, 1 <= n) ⇒ Mor (Σp n) (Lo n)
 cholInverse = chol . composeChol . f . decomposeChol
               where
@@ -488,6 +511,7 @@ cholInverse = chol . composeChol . f . decomposeChol
                                                                                          -- = [ I + D^{-1} U_nil ]^{-1}  D^{-1}
                                                                                          -- = [ D + U_nil ]^{-1}
 
+-- | determinant of the lower Cholesky factor
 cholDet ∷ ∀ n. (KnownNat n, 1 <= n) ⇒ Mor (Σp n) (ℝp 1)
 cholDet = Mor $ linear (LA.konst 1) . pr1' @_ @n
 

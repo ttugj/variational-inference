@@ -50,8 +50,8 @@ instance Cat Unconstrained (->) where
     (.) = (F..)
     witness _ a = a
 
--- | Cartesian structure (with free product)
-class Cat ob c ⇒ Cart ob c where
+-- | Cartesian structure (over 'Type', with its free product)
+class Cat (ob ∷ Type → Constraint) c ⇒ Cart ob c where
     pr1 ∷ (ob x, ob y) ⇒ c (x,y) x
     pr2 ∷ (ob x, ob y) ⇒ c (x,y) y
     (×) ∷ c x y → c x y' → c x (y,y')                 -- ^K \/

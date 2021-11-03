@@ -24,6 +24,7 @@ import VI.Jets
 import VI.Domains
 
 import Data.Kind
+import Data.Proxy
 import Data.Maybe
 import GHC.TypeLits
 
@@ -32,6 +33,12 @@ import Control.Applicative
 import Control.Monad
 import System.Random.Stateful
 import System.Random.MWC.Distributions
+
+import GHC.Float 
+import GHC.Real  
+import GHC.Num   
+import GHC.Classes
+import GHC.Types
 
 -- | A minimal structure for building joint likelihoods
 class Cart ob c ⇒ Disintegration ob c p where
@@ -92,7 +99,7 @@ instance Disintegration Domain Mor Sampler where
 pseudoConditional ∷ (Domain y, Domain z) ⇒ Density x (y, z) → Density (x, y) z
 pseudoConditional (Density p) = Density $ p . assocR
 
-push ∷ ∀ (x ∷ Type) (y ∷ Type) (z ∷ Type). Mor y z → Sampler x y → Sampler x z
+push ∷ ∀ x y z. Mor y z → Sampler x y → Sampler x z
 push f (Sampler s) = witness f $ Sampler $ (f .) <$> s
 
 {-
@@ -107,7 +114,17 @@ push f (Sampler s) = witness f $ Sampler $ (f .) <$> s
 -- | General multivariate normal
 gaussian ∷ ∀ n. (KnownNat n, 1 <= n) ⇒ Couple Density Sampler (ℝ n, Σp n) (ℝ n)
 gaussian = Couple (Density p) (Sampler s) where
-            p = undefined
+            -- normalising factor
+            z = (2*pi) ** (-0.5 * (fromInteger $ natVal (Proxy ∷ Proxy n))) 
+            -- standard normal pdf
+            φ = fromPoints $ \x → let e = expD ▶ (real (-0.5) ◀ mul $ x ∙ x)
+                                   in e ◀ quo $ realp z
+            -- transformed pdf
+            p = fromPoints2 $ \par x → let loc = pr1 ▶ par
+                                           cov = pr2 ▶ par
+                                           z   = (emb @_ @(M n n) ▶ cholInverse ▶ cov) ∙ (x ◀ sub $ loc)
+                                        in (φ ▶ z) ◀ quo $ (cholDet ▶ cov)
+            -- sampler
             s = undefined
 
 divergenceSample ∷ SampleM m ⇒ Couple Density Sampler t x → Density s x → m (Mor (t,s) (ℝ 1))
