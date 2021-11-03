@@ -32,7 +32,10 @@ import Data.Functor
 import Control.Applicative
 import Control.Monad
 import System.Random.Stateful
-import System.Random.MWC.Distributions
+
+import qualified System.Random.MWC.Distributions as MWC
+import qualified Data.Vector.Generic             as G
+import qualified Numeric.LinearAlgebra.Static    as LA
 
 import GHC.Float 
 import GHC.Real  
@@ -122,10 +125,13 @@ gaussian = Couple (Density p) (Sampler s) where
             -- transformed pdf
             p = fromPoints2 $ \par x → let loc = pr1 ▶ par
                                            cov = pr2 ▶ par
-                                           z   = (emb @_ @(M n n) ▶ cholInverse ▶ cov) ∙ (x ◀ sub $ loc)
+                                           z   = (cholInverse ▶ cov) ∙ (x ◀ sub $ loc)
                                         in (φ ▶ z) ◀ quo $ (cholDet ▶ cov)
             -- sampler
-            s = undefined
+            s ∷ ∀ m. SampleM m ⇒ m (Mor (ℝ n, Σp n) (ℝ n))
+            s = do
+                   z ← sample $ \g → fromJust @(LA.R n) . LA.create <$> G.replicateM (intVal @n) (MWC.standard g) 
+                   return $ fromPoints2 $ \loc cov → ((chol ▶ cov) ∙ (fromConcrete @n @(ℝ n) z . terminal)) ◀ add $ loc 
 
 divergenceSample ∷ SampleM m ⇒ Couple Density Sampler t x → Density s x → m (Mor (t,s) (ℝ 1))
 divergenceSample (Couple (Density q) (Sampler s)) (Density p) = go <$> s where

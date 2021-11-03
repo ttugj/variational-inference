@@ -380,6 +380,9 @@ instance {-# OVERLAPPABLE #-} KnownNat n ⇒ M 1 n ≌ ℝ n
 instance (KnownNat m, KnownNat n) ⇒ Dot (M m n) (ℝ n) (ℝ m) where
     dot = iso . mm @m @n @1 . bimap id osi
 
+instance (KnownNat n, 1 <= n) ⇒ Dot (Lo n) (ℝ n) (ℝ n) where
+    dot = iso . mm @n @n @1 . bimap emb osi
+
 instance (KnownNat m, KnownNat n) ⇒ Dot (ℝ m) (M m n) (ℝ n) where
     dot = iso . mm @1 @m @n . bimap osi id 
 
