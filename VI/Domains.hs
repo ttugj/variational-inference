@@ -39,16 +39,16 @@ module VI.Domains ( -- * Cartesian category of domains
                   , Pt, ℝ, ℝp, I, Δ, M, Σ, Σp, Lo
                     -- * Concrete presentation
                   , Concrete(..), getPoint, real, realp
-                    -- * Basic operations
+                    -- * General structures 
                   , type(⊂)(..), type(≌)(..)
-                  , Based(..), Add(..), Ab(..), Mul(..), AbM(..), ScaleP(..), Scale(..), Lerp(..), Invol(..), Dot(..)
-                  , (∙), logD, expD, simplexProjection
-                    -- * Matrix operations
-                    -- ** main
-                  , tr, sym, tril, chol, cholInverse, cholDet, mm, mmT
+                  , Based(..), Add(..), Ab(..), Mul(..), AbM(..), ScaleP(..), Scale(..), Lerp(..), Invol(..), Dot(..), (∙)
+                    -- * Assorted morphisms
+                    -- ** matrices
                   , Square(..)
-                    -- ** auxiliary
+                  , tr, sym, tril, chol, cholInverse, cholDet, mm, mmT
                   , toNil, decomposeChol, composeChol 
+                    -- ** other
+                  , logD, expD, simplexProjection
                   ) where
 
 import VI.Categories
@@ -509,9 +509,9 @@ cholInverse = chol . composeChol . f . decomposeChol
                      in fromPoints2 $ \d u → let di   = invol ▶ d
                                                  di'  = emb @(ℝp n) @(ℝ n) ▶ di
                                                  di'' = fromDiag @(Lo n) ▶ di'
-                                                 v    = neg ▶ (di'' ◀ mul $ (toNil ▶ u)) -- -D^{-1} U_nil
+                                                 v    = neg ▶ (di'' ◀ mul $ toNil ▶ u) -- -D^{-1} U_nil
                                                  go 1 = v
-                                                 go k = v ◀ add $ (v ◀ mul $ go (k-1))
+                                                 go k = v ◀ add $ v ◀ mul $ go (k-1)
                                                  ui   = go (n-1) ◀ mul $ di''            -- ( Σ_{0<k<n} (-D^{-1} U_nil)^k ) D^{-1}
                                               in di × ui                                 -- ( Σ_{k>=0}  (-D^{-1} U_nil)^k ) D^{-1}
                                                                                          -- = [ I + D^{-1} U_nil ]^{-1}  D^{-1}

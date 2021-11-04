@@ -84,7 +84,7 @@ data Sampler x y where
 
 instance Disintegration Domain Mor Density where
     pull f (Density p) = witness f $ Density $ p . bimap f id
-    mix (Density p) (Density q) = Density $ fromPoints3 $ \x y z → (p ▶ x × y) ◀ mul $ (q ▶ x × y × z)
+    mix (Density p) (Density q) = Density $ fromPoints3 $ \x y z → (p ▶ x × y) ◀ mul $ q ▶ x × y × z
     pushAL (Density p) = Density $ p . bimap id assocR
     pushAR (Density p) = Density $ p . bimap id assocL
     pushS  (Density p) = Density $ p . bimap id swap
@@ -105,18 +105,15 @@ pseudoConditional (Density p) = Density $ p . assocR
 push ∷ ∀ x y z. Mor y z → Sampler x y → Sampler x z
 push f (Sampler s) = witness f $ Sampler $ (f .) <$> s
 
-{-
-
-    z ~ N(0, I)
-    x = x₀ + L z ~ N(x₀, LL*)
-    
-    log p~(x) = log p(L⁻¹(x-x₀)) - log det L
-
--}
 
 -- | General multivariate normal
 gaussian ∷ ∀ n. (KnownNat n, 1 <= n) ⇒ Couple Density Sampler (ℝ n, Σp n) (ℝ n)
 gaussian = Couple (Density p) (Sampler s) where
+            {-
+                z ~ N(0, I); φ(z) = (2π)^(-n/2) exp(-|z|²/2)
+                x = x₀ + L z ~ N(x₀, LL*)
+                log p(x) = log φ(L⁻¹(x-x₀)) - log det L
+            -}
             -- normalising factor
             z = (2*pi) ** (-0.5 * (fromInteger $ natVal (Proxy ∷ Proxy n))) 
             -- standard normal pdf
@@ -126,7 +123,7 @@ gaussian = Couple (Density p) (Sampler s) where
             p = fromPoints2 $ \par x → let loc = pr1 ▶ par
                                            cov = pr2 ▶ par
                                            z   = (cholInverse ▶ cov) ∙ (x ◀ sub $ loc)
-                                        in (φ ▶ z) ◀ quo $ (cholDet ▶ cov)
+                                        in (φ ▶ z) ◀ quo $ cholDet ▶ cov
             -- sampler
             s ∷ ∀ m. SampleM m ⇒ m (Mor (ℝ n, Σp n) (ℝ n))
             s = do
