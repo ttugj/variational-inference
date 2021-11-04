@@ -48,7 +48,7 @@ module VI.Domains ( -- * Cartesian category of domains
                   , tr, sym, tril, chol, cholInverse, cholDet, mm, mmT
                   , toNil, decomposeChol, composeChol 
                     -- ** Other
-                  , logD, expD, logitD, logisticD, simplexProjection
+                  , log', exp', logit, logistic, simplexProjection
                   ) where
 
 import VI.Categories
@@ -72,6 +72,10 @@ import GHC.Real
 import GHC.Num   
 import GHC.Classes
 import GHC.Types
+
+{-
+ -  Basic definitions
+ -}
 
 -- | Dimension of a domain
 type family Dim (x ∷ Type) ∷ Nat
@@ -117,7 +121,13 @@ type instance Dim (Σ  n  ) = n + ((n * (n - 1)) `Div` 2)
 type instance Dim (Σp n  ) = n + ((n * (n - 1)) `Div` 2)
 type instance Dim (Lo n  ) = n + ((n * (n - 1)) `Div` 2)
 
--- | Concrete presentation
+instance Terminal Mor Domain Pt where
+    terminal = Mor 0
+
+{-
+ -  Concrete presentation / construction
+ -}
+
 class (Domain x, KnownNat n) ⇒ Concrete (n ∷ Nat) x | x → n where
     toConcrete      ∷ Mor x (ℝ n)    
     fromConcrete    ∷ LA.R n → Mor Pt x
@@ -141,9 +151,9 @@ real x = Mor $ point $ LA.konst x
 realp ∷ ∀ t. Domain t ⇒ Double → Mor t (ℝp 1) 
 realp x = Mor $ point $ LA.konst $ log x
 
-
-instance Terminal Mor Domain Pt where
-    terminal = Mor 0
+{-
+ -  Isomorphisms
+ -}
 
 -- | Canonical isomorphism
 class (Domain x, Domain y, Dim x ~ Dim y) ⇒ x ≌ y where
@@ -164,16 +174,28 @@ instance (Domain x, Domain y) ⇒ (x, y) ≌ (y, x) where
     iso = swap
     osi = swap
 
+instance Δ 1 ≌ I 1 where
+    iso = Mor $ linear (LA.konst (sqrt 2) * LA.eye)
+    osi = Mor $ linear (LA.konst (recip $ sqrt 2) * LA.eye)
+
+instance {-# OVERLAPPABLE #-} (x ⊂ y, y ⊂ x, Dim x ~ Dim y) ⇒ x ≌ y where
+    iso = emb
+    osi = emb
+
+instance KnownNat n ⇒ M n 1 ≌ ℝ n
+instance {-# OVERLAPPABLE #-} KnownNat n ⇒ M 1 n ≌ ℝ n
+
+
+{-
+ -  Embeddings
+ -}
+
 -- | Canonical subdomain embedding
 class (Domain x, Domain y) ⇒ x ⊂ y where
     emb ∷ Mor x y
 
 instance Domain x ⇒ x ⊂ x where
     emb = id
-
-instance {-# OVERLAPPABLE #-} (x ⊂ y, y ⊂ x, Dim x ~ Dim y) ⇒ x ≌ y where
-    iso = emb
-    osi = emb
 
 instance (x ⊂ y, x' ⊂ y') ⇒ (x,x') ⊂ (y,y') where
     emb = bimap emb emb
@@ -193,9 +215,14 @@ instance (KnownNat n, 1 <= n) ⇒ Lo n ⊂ M n n where
               ι = law . mkFin' $ fromMaybe ((n*(n+1)) `div` 2) . uncurry (ixLo n) <$> lixM n n 
            in Mor $ ι . (id ⊙ 0)
 
--- | Lower-triangular Cholesky factor
-chol ∷ ∀ n. (KnownNat n, 1 <= n) ⇒ Mor (Σp n) (Lo n)
-chol = Mor $ bimap' @J @n @((n * (n - 1)) `Div` 2) (fromPoints exp) id
+instance (KnownNat n, KnownNat m, m ~ (n + 1)) ⇒ Δ n ⊂ ℝp m where
+    emb = Mor $ fromPoints $ \x → let y = linear basisH ▶ x
+                                      s = log (linear 1 ▶ exp y)
+                                   in y - (expand ▶ s)
+
+instance (KnownNat n, 1 <= n) ⇒ Σp n ⊂ Σ n where
+    emb = mmT @n @n  . emb . chol    -- we factor Σp n ⊂ Σ n through the space of lower-triangular matrices
+
 
 instance KnownNat n ⇒ Concrete n (ℝp n) where
     toConcrete      = emb
@@ -209,17 +236,96 @@ instance (KnownNat n, KnownNat m, m ~ n + 1) ⇒ Concrete m (Δ n) where
     toConcrete      = emb @(ℝp m) . emb
     fromConcrete x  = Mor $ point (LA.tr (basisH @n) LA.#> log x)
 
+
+{-
+ -  Add
+ -}
+
 -- | Additive domains 
 class Domain x ⇒ Add x where
     add ∷ Mor (x, x) x
+
+instance KnownNat n ⇒ Add (ℝ n) where
+    add = Mor $ fromPoints2' (+)
+
+instance KnownNat n ⇒ Add (ℝp n) where
+    add = Mor $ fromPoints2' $ \x y → log (exp x + exp y)
+
+instance (KnownNat m, KnownNat n) ⇒ Add (M m n) where
+    add = Mor $ fromPoints2' (+)
+
+instance (KnownNat n, 1 <= n) ⇒ Add (Σ n) where
+    add = Mor $ fromPoints2' (+)
+
+instance (KnownNat n, 1 <= n) ⇒ Add (Lo n) where
+    add = Mor $ fromPoints2' (+)
+
+instance (KnownNat n, 1 <= n) ⇒ Add (Σp n) where
+    add = Mor $ fromPoints2' $ \x y → let x0 = pr1' @J @n ▶ x
+                                          x1 = pr2' @J @n ▶ x
+                                          y0 = pr1' @J @n ▶ y
+                                          y1 = pr2' @J @n ▶ y
+                                          z0 = log (exp x0 + exp y0)
+                                          z1 = x1 + y1
+                                       in z0 ⊙ z1  
+
+{-
+ -  Mul
+ -}
 
 -- | Multiplicative domains
 class Domain x ⇒ Mul x where
     mul ∷ Mor (x, x) x
 
+instance KnownNat n ⇒ Mul (ℝ n) where
+    mul = Mor $ fromPoints2' (*)
+
+instance KnownNat n ⇒ Mul (ℝp n) where
+    mul = Mor $ fromPoints2' (+)
+
+instance KnownNat n ⇒ Mul (I n) where
+    mul = Mor $ fromPoints2' $ \x y → x + y - log (1 + exp x + exp y)  
+
+instance KnownNat n ⇒ Mul (M n n) where
+    mul = mm
+
+instance (KnownNat n,  1 <= n) ⇒ Mul (Lo n) where
+    mul = tril . mm @n @n @n . bimap emb emb
+
+{-
+ -  Lerp
+ -}
+
 -- | Convex domains
 class Domain x ⇒ Lerp x where
     lerp ∷ Mor (I 1, (x, x)) x
+
+instance {-# OVERLAPPABLE #-} (ScaleP x, Add x) ⇒ Lerp x where
+    lerp = fromPoints3 $ \c x x' → let k  = emb ▶ c
+                                       k' = emb ▶ invol ▶ c
+                                       y  = k  ◀ scalep $ x'
+                                       y' = k' ◀ scalep $ x
+                                    in y ◀ add $ y'
+
+instance KnownNat n ⇒ Lerp (Δ  n) where
+    lerp = fromPoints3 $ \c x x' → let k  = emb ▶ c
+                                       k' = emb ▶ invol ▶ c
+                                       y  = k  ◀ scalep $ emb ▶ x'
+                                       y' = k' ◀ scalep $ emb ▶ x
+                                    in simplexProjection ▶ (y ◀ add $ y')
+
+instance KnownNat n ⇒ Lerp (I  n) where
+    lerp = Mor $ fromPoints3' $ \c x x' → let e z = let w = exp z in w / (1 + w)
+                                              d   = e (expand ▶ c)
+                                              y   = e x
+                                              y'  = e x'
+                                              y'' = (1-d) * y + d * y'
+                                           in log $ y'' / (1 - y'')
+
+{-
+ - ScaleP, Scale
+ -}
+
 
 -- | Conical domains
 class Domain x ⇒ ScaleP x where
@@ -229,11 +335,50 @@ class Domain x ⇒ ScaleP x where
 class Domain x ⇒ Scale x where
     scale ∷ Mor (ℝ 1, x) x
 
+instance {-# OVERLAPPABLE #-} Scale x ⇒ ScaleP x where
+    scalep = scale . bimap emb id
+
+instance KnownNat n ⇒ ScaleP (ℝp n) where
+    scalep = Mor $ fromPoints2' $ \c x → (expand ▶ c) + x
+              
+instance KnownNat n ⇒ Scale (ℝ n) where
+    scale  = Mor $ fromPoints2' $ \c x → (expand ▶ c) * x
+
+instance (KnownNat m, KnownNat n) ⇒ Scale (M m n) where
+    scale  = Mor $ fromPoints2' $ \c x → (expand ▶ c) * x
+
+instance (KnownNat n, 1 <= n) ⇒ Scale (Σ n) where
+    scale  = Mor $ fromPoints2' $ \c x → (expand ▶ c) * x
+
+instance (KnownNat n, 1 <= n) ⇒ Scale (Lo n) where
+    scale  = Mor $ fromPoints2' $ \c x → (expand ▶ c) * x
+
+instance (KnownNat n, 1 <= n) ⇒ ScaleP (Σp n) where
+    scalep = Mor $ fromPoints2' $ \c x → let x0 = pr1' @J @n ▶ x
+                                             x1 = pr2' @J @n ▶ x
+                                             e  = exp c
+                                             y0 = (expand ▶ c) + x0
+                                             y1 = (expand ▶ e) * x1
+                                          in y0 ⊙ y1  
+
+{-
+ -  Invol
+ -}
+
 -- | Involutive domains
 class Domain x ⇒ Invol x where
     -- | by default, invol corresponds to negation in canonical coordinates
     invol ∷ Mor x x
     invol = Mor $ fromPoints negate
+
+instance KnownNat n ⇒ Invol (ℝ  n) 
+instance KnownNat n ⇒ Invol (ℝp n) 
+instance KnownNat n ⇒ Invol (I  n) 
+instance KnownNat n ⇒ Invol (Δ  n)
+
+{- 
+ -  Ab, AbM
+ -}
 
 -- | (additive) Abelian domains
 class Add x ⇒ Ab x where
@@ -247,6 +392,30 @@ class Mul x ⇒ AbM x where
     quo ∷ Mor (x, x) x
     quo = mul . bimap id rcp
 
+instance KnownNat n ⇒ Ab (ℝ n) where
+    neg = Mor $ fromPoints negate
+    sub = Mor $ fromPoints2' (-)
+
+instance KnownNat n ⇒ AbM (ℝp n) where
+    rcp = Mor $ fromPoints negate
+    quo = Mor $ fromPoints2' (-)
+
+instance (KnownNat m, KnownNat n) ⇒ Ab (M m n) where
+    neg = Mor $ fromPoints negate
+    sub = Mor $ fromPoints2' (-)
+
+instance (KnownNat n, 1 <= n) ⇒ Ab (Σ n) where
+    neg = Mor $ fromPoints negate
+    sub = Mor $ fromPoints2' (-)
+
+instance (KnownNat n, 1 <= n) ⇒ Ab (Lo n) where
+    neg = Mor $ fromPoints negate
+    sub = Mor $ fromPoints2' (-)
+
+{-
+ -  Dot
+ -}
+
 -- | Heavily overloaded dot operator for multiplicative pairings 
 class (Domain x, Domain y, Domain z) ⇒ Dot x y z | x y → z where
     dot ∷ Mor (x, y) z
@@ -254,42 +423,69 @@ class (Domain x, Domain y, Domain z) ⇒ Dot x y z | x y → z where
 (∙) ∷ (Domain t, Dot x y z) ⇒ Mor t x → Mor t y → Mor t z -- Sb
 (∙) = toPoints2 dot
 
-instance {-# OVERLAPPABLE #-} Scale x ⇒ ScaleP x where
-    scalep = scale . bimap emb id
+instance (KnownNat m, KnownNat n, KnownNat l) ⇒ Dot (M m n) (M n l) (M m l) where
+    dot = mm
 
-instance KnownNat n ⇒ Add (ℝ n) where
-    add = Mor $ fromPoints2' (+)
+instance (KnownNat m, KnownNat n) ⇒ Dot (M m n) (ℝ n) (ℝ m) where
+    dot = iso . mm @m @n @1 . bimap id osi
 
-instance KnownNat n ⇒ Ab (ℝ n) where
-    neg = Mor $ fromPoints negate
-    sub = Mor $ fromPoints2' (-)
+instance (KnownNat n, x ⊂ M n n) ⇒ Dot x (ℝ n) (ℝ n) where
+    dot = iso . mm @n @n @1 . bimap emb osi
 
-instance KnownNat n ⇒ Add (ℝp n) where
-    add = Mor $ fromPoints2' $ \x y → log (exp x + exp y)
+instance (KnownNat m, KnownNat n) ⇒ Dot (ℝ m) (M m n) (ℝ n) where
+    dot = iso . mm @1 @m @n . bimap osi id 
 
-instance KnownNat n ⇒ Mul (ℝ n) where
-    mul = Mor $ fromPoints2' (*)
+instance (KnownNat n, x ⊂ M n n) ⇒ Dot (ℝ n) x (ℝ n) where
+    dot = iso . mm @1 @n @n . bimap osi emb
 
-instance KnownNat n ⇒ Mul (ℝp n) where
-    mul = Mor $ fromPoints2' (+)
+instance KnownNat n ⇒ Dot (ℝ n) (ℝ n) (ℝ 1) where
+    dot = iso . mm @1 @n @1 . bimap osi osi
 
-instance KnownNat n ⇒ AbM (ℝp n) where
-    rcp = Mor $ fromPoints negate
-    quo = Mor $ fromPoints2' (-)
+{-
+ -  Based
+ -}
 
-instance KnownNat n ⇒ Mul (I n) where
-    mul = Mor $ fromPoints2' $ \x y → x + y - log (1 + exp x + exp y)  
+-- | Based domains
+class Domain x ⇒ Based x where
+    -- | by default, the basepoint is zero in canonical coordinates
+    basePt ∷ Mor Pt x
+    basePt = Mor 0
 
-instance KnownNat n ⇒ ScaleP (ℝp n) where
-    scalep = Mor $ fromPoints2' $ \c x → (expand ▶ c) + x
-              
-instance KnownNat n ⇒ Scale (ℝ n) where
-    scale  = Mor $ fromPoints2' $ \c x → (expand ▶ c) * x
+instance KnownNat n ⇒ Based (ℝ  n)
+instance KnownNat n ⇒ Based (ℝp n)
+instance KnownNat n ⇒ Based (Δ  n)
+instance KnownNat n ⇒ Based (I  n)
+instance (KnownNat n, 1 <= n) ⇒ Based (Σ  n)
+instance (KnownNat n, 1 <= n) ⇒ Based (Lo n)
+instance (KnownNat n, 1 <= n) ⇒ Based (Σp n)
 
-instance KnownNat n ⇒ Invol (ℝ  n) 
-instance KnownNat n ⇒ Invol (ℝp n) 
-instance KnownNat n ⇒ Invol (I  n) 
-instance KnownNat n ⇒ Invol (Δ  n)
+{-
+ -  Square
+ -}
+
+class Domain x ⇒ Square x where
+    type Diag x
+    toDiag      ∷ Mor x (Diag x)
+    fromDiag    ∷ Mor (Diag x) x
+
+instance (KnownNat n, 1 <= n) ⇒ Square (Lo n) where
+    type Diag (Lo n) = ℝ n
+    toDiag = Mor $ pr1' @_ @n
+    fromDiag = Mor $ id ⊙ 0
+
+instance (KnownNat n, 1 <= n) ⇒ Square (Σ n) where
+    type Diag (Σ n) = ℝ n
+    toDiag = Mor $ pr1' @_ @n
+    fromDiag = Mor $ id ⊙ 0
+
+instance (KnownNat n, 1 <= n) ⇒ Square (Σp n) where
+    type Diag (Σp n) = ℝp n
+    toDiag = Mor $ pr1' @_ @n
+    fromDiag = Mor $ id ⊙ 0
+
+{-
+ -  Individual morphisms
+ -}
 
 -- | The simplex @Δ n@ is a retract of @ℝ (n+1)@, so that 
 --
@@ -298,37 +494,6 @@ instance KnownNat n ⇒ Invol (Δ  n)
 -- @
 simplexProjection ∷ ∀ n. KnownNat n ⇒ Mor (ℝp (n + 1)) (Δ n) 
 simplexProjection = Mor $ linear (LA.tr basisH)
-
-instance (KnownNat n, KnownNat m, m ~ (n + 1)) ⇒ Δ n ⊂ ℝp m where
-    emb = Mor $ fromPoints $ \x → let y = linear basisH ▶ x
-                                      s = log (linear 1 ▶ exp y)
-                                   in y - (expand ▶ s)
-
-instance Δ 1 ≌ I 1 where
-    iso = Mor $ linear (LA.konst (sqrt 2) * LA.eye)
-    osi = Mor $ linear (LA.konst (recip $ sqrt 2) * LA.eye)
-
-
-instance (KnownNat m, KnownNat n) ⇒ Add (M m n) where
-    add = Mor $ fromPoints2' (+)
-
-instance (KnownNat m, KnownNat n) ⇒ Ab (M m n) where
-    neg = Mor $ fromPoints negate
-    sub = Mor $ fromPoints2' (-)
-
-instance (KnownNat n, 1 <= n) ⇒ Add (Σ n) where
-    add = Mor $ fromPoints2' (+)
-
-instance (KnownNat n, 1 <= n) ⇒ Ab (Σ n) where
-    neg = Mor $ fromPoints negate
-    sub = Mor $ fromPoints2' (-)
-
-instance (KnownNat n, 1 <= n) ⇒ Add (Lo n) where
-    add = Mor $ fromPoints2' (+)
-
-instance (KnownNat n, 1 <= n) ⇒ Ab (Lo n) where
-    neg = Mor $ fromPoints negate
-    sub = Mor $ fromPoints2' (-)
 
 -- | matrix transpose
 tr ∷ ∀ m n. (KnownNat m, KnownNat n) ⇒ Mor (M m n) (M n m) 
@@ -363,122 +528,15 @@ mm = let m = intVal @m
                                     in dx
                          in (y, g)
 
-instance (KnownNat m, KnownNat n, KnownNat l) ⇒ Dot (M m n) (M n l) (M m l) where
-    dot = mm
-
-instance KnownNat n ⇒ M n 1 ≌ ℝ n
-instance {-# OVERLAPPABLE #-} KnownNat n ⇒ M 1 n ≌ ℝ n
-
-instance (KnownNat m, KnownNat n) ⇒ Dot (M m n) (ℝ n) (ℝ m) where
-    dot = iso . mm @m @n @1 . bimap id osi
-
-instance (KnownNat n, x ⊂ M n n) ⇒ Dot x (ℝ n) (ℝ n) where
-    dot = iso . mm @n @n @1 . bimap emb osi
-
-instance (KnownNat m, KnownNat n) ⇒ Dot (ℝ m) (M m n) (ℝ n) where
-    dot = iso . mm @1 @m @n . bimap osi id 
-
-instance (KnownNat n, x ⊂ M n n) ⇒ Dot (ℝ n) x (ℝ n) where
-    dot = iso . mm @1 @n @n . bimap osi emb
-
-instance KnownNat n ⇒ Dot (ℝ n) (ℝ n) (ℝ 1) where
-    dot = iso . mm @1 @n @1 . bimap osi osi
-
 -- | produce a symmetric matrix, mapping a to a a^T
 mmT ∷ ∀ m n. (KnownNat m, KnownNat n, 1 <= n) ⇒ Mor (M n m) (Σ n)
 mmT = sym . mm @n @m @n . bimap id tr . (id × id)
 
-instance (KnownNat n, 1 <= n) ⇒ Σp n ⊂ Σ n where
-    emb = mmT @n @n  . emb . chol    -- we factor Σp n ⊂ Σ n through the space of lower-triangular matrices
-
-instance KnownNat n ⇒ Mul (M n n) where
-    mul = mm
-
-instance (KnownNat n,  1 <= n) ⇒ Mul (Lo n) where
-    mul = tril . mm @n @n @n . bimap emb emb
-
-instance (KnownNat m, KnownNat n) ⇒ Scale (M m n) where
-    scale  = Mor $ fromPoints2' $ \c x → (expand ▶ c) * x
-
-instance (KnownNat n, 1 <= n) ⇒ Scale (Σ n) where
-    scale  = Mor $ fromPoints2' $ \c x → (expand ▶ c) * x
-
-instance (KnownNat n, 1 <= n) ⇒ Scale (Lo n) where
-    scale  = Mor $ fromPoints2' $ \c x → (expand ▶ c) * x
-
-instance {-# OVERLAPPABLE #-} (ScaleP x, Add x) ⇒ Lerp x where
-    lerp = fromPoints3 $ \c x x' → let k  = emb ▶ c
-                                       k' = emb ▶ invol ▶ c
-                                       y  = k  ◀ scalep $ x'
-                                       y' = k' ◀ scalep $ x
-                                    in y ◀ add $ y'
-
-instance KnownNat n ⇒ Lerp (Δ  n) where
-    lerp = fromPoints3 $ \c x x' → let k  = emb ▶ c
-                                       k' = emb ▶ invol ▶ c
-                                       y  = k  ◀ scalep $ emb ▶ x'
-                                       y' = k' ◀ scalep $ emb ▶ x
-                                    in simplexProjection ▶ (y ◀ add $ y')
-
-instance KnownNat n ⇒ Lerp (I  n) where
-    lerp = Mor $ fromPoints3' $ \c x x' → let e z = let w = exp z in w / (1 + w)
-                                              d   = e (expand ▶ c)
-                                              y   = e x
-                                              y'  = e x'
-                                              y'' = (1-d) * y + d * y'
-                                           in log $ y'' / (1 - y'')
-
-class Domain x ⇒ Square x where
-    type Diag x
-    toDiag      ∷ Mor x (Diag x)
-    fromDiag    ∷ Mor (Diag x) x
-
-instance (KnownNat n, 1 <= n) ⇒ Square (Lo n) where
-    type Diag (Lo n) = ℝ n
-    toDiag = Mor $ pr1' @_ @n
-    fromDiag = Mor $ id ⊙ 0
-
-instance (KnownNat n, 1 <= n) ⇒ Square (Σ n) where
-    type Diag (Σ n) = ℝ n
-    toDiag = Mor $ pr1' @_ @n
-    fromDiag = Mor $ id ⊙ 0
-
-instance (KnownNat n, 1 <= n) ⇒ Square (Σp n) where
-    type Diag (Σp n) = ℝp n
-    toDiag = Mor $ pr1' @_ @n
-    fromDiag = Mor $ id ⊙ 0
-
--- | Based domains
-class Domain x ⇒ Based x where
-    -- | by default, the basepoint is zero in canonical coordinates
-    basePt ∷ Mor Pt x
-    basePt = Mor 0
-
-instance KnownNat n ⇒ Based (ℝ  n)
-instance KnownNat n ⇒ Based (ℝp n)
-instance KnownNat n ⇒ Based (Δ  n)
-instance KnownNat n ⇒ Based (I  n)
-instance (KnownNat n, 1 <= n) ⇒ Based (Σ  n)
-instance (KnownNat n, 1 <= n) ⇒ Based (Lo n)
-instance (KnownNat n, 1 <= n) ⇒ Based (Σp n)
 
 
-instance (KnownNat n, 1 <= n) ⇒ Add (Σp n) where
-    add = Mor $ fromPoints2' $ \x y → let x0 = pr1' @J @n ▶ x
-                                          x1 = pr2' @J @n ▶ x
-                                          y0 = pr1' @J @n ▶ y
-                                          y1 = pr2' @J @n ▶ y
-                                          z0 = log (exp x0 + exp y0)
-                                          z1 = x1 + y1
-                                       in z0 ⊙ z1  
-
-instance (KnownNat n, 1 <= n) ⇒ ScaleP (Σp n) where
-    scalep = Mor $ fromPoints2' $ \c x → let x0 = pr1' @J @n ▶ x
-                                             x1 = pr2' @J @n ▶ x
-                                             e  = exp c
-                                             y0 = (expand ▶ c) + x0
-                                             y1 = (expand ▶ e) * x1
-                                          in y0 ⊙ y1  
+-- | Lower-triangular Cholesky factor
+chol ∷ ∀ n. (KnownNat n, 1 <= n) ⇒ Mor (Σp n) (Lo n)
+chol = Mor $ bimap' @J @n @((n * (n - 1)) `Div` 2) (fromPoints exp) id
 
 -- | take nilpotent part (i.e. put zeroes on diagonal)
 toNil ∷ ∀ n. (KnownNat n, 1 <= n) ⇒ Mor (Lo n) (Lo n)
@@ -514,18 +572,18 @@ cholDet ∷ ∀ n. (KnownNat n, 1 <= n) ⇒ Mor (Σp n) (ℝp 1)
 cholDet = Mor $ linear (LA.konst 1) . pr1' @_ @n
 
 -- | logarithm
-logD ∷ KnownNat n ⇒ Mor (ℝp n) (ℝ n)
-logD = Mor id
+log' ∷ KnownNat n ⇒ Mor (ℝp n) (ℝ n)
+log' = Mor id
 
 -- | exponential
-expD ∷ KnownNat n ⇒ Mor (ℝ n) (ℝp n)
-expD = Mor id
+exp' ∷ KnownNat n ⇒ Mor (ℝ n) (ℝp n)
+exp' = Mor id
 
 -- | logit
-logitD ∷ KnownNat n ⇒ Mor (I n) (ℝ n)
-logitD = Mor id
+logit ∷ KnownNat n ⇒ Mor (I n) (ℝ n)
+logit = Mor id
 
 -- | logistic 
-logisticD ∷ KnownNat n ⇒ Mor (ℝ n) (I n)
-logisticD = Mor id
+logistic ∷ KnownNat n ⇒ Mor (ℝ n) (I n)
+logistic = Mor id
 

@@ -117,7 +117,7 @@ gaussian = Couple (Density p) (Sampler s) where
             -- normalising factor
             z = (2*pi) ** (-0.5 * (fromInteger $ natVal (Proxy ∷ Proxy n))) 
             -- standard normal pdf
-            φ = fromPoints $ \x → let e = expD ▶ (real (-0.5) ◀ mul $ x ∙ x)
+            φ = fromPoints $ \x → let e = exp' ▶ (real (-0.5) ◀ mul $ x ∙ x)
                                    in e ◀ quo $ realp z
             -- transformed pdf
             p = fromPoints2 $ \par x → let loc = pr1 ▶ par
@@ -151,5 +151,5 @@ divergenceSample (Couple (Density q) (Sampler s)) (Density p) = go <$> s where
                                                                                                      π = σ ◀ p $ ξ
                                                                                                      ρ = θ ◀ q $ ξ
                                                                                                      d = ρ ◀ quo $ π
-                                                                                                  in logD ▶ d 
+                                                                                                  in log' ▶ d 
 
