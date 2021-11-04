@@ -43,12 +43,12 @@ module VI.Domains ( -- * Cartesian category of domains
                   , type(⊂)(..), type(≌)(..)
                   , Based(..), Add(..), Ab(..), Mul(..), AbM(..), ScaleP(..), Scale(..), Lerp(..), Invol(..), Dot(..), (∙)
                     -- * Assorted morphisms
-                    -- ** matrices
+                    -- ** Matrix
                   , Square(..)
                   , tr, sym, tril, chol, cholInverse, cholDet, mm, mmT
                   , toNil, decomposeChol, composeChol 
-                    -- ** other
-                  , logD, expD, simplexProjection
+                    -- ** Other
+                  , logD, expD, logitD, logisticD, simplexProjection
                   ) where
 
 import VI.Categories
@@ -209,14 +209,6 @@ instance (KnownNat n, KnownNat m, m ~ n + 1) ⇒ Concrete m (Δ n) where
     toConcrete      = emb @(ℝp m) . emb
     fromConcrete x  = Mor $ point (LA.tr (basisH @n) LA.#> log x)
 
--- | logarithm
-logD ∷ KnownNat n ⇒ Mor (ℝp n) (ℝ n)
-logD = Mor id
-
--- | exponential
-expD ∷ KnownNat n ⇒ Mor (ℝ n) (ℝp n)
-expD = Mor id
-
 -- | Additive domains 
 class Domain x ⇒ Add x where
     add ∷ Mor (x, x) x
@@ -255,7 +247,7 @@ class Mul x ⇒ AbM x where
     quo ∷ Mor (x, x) x
     quo = mul . bimap id rcp
 
--- | Heavily overloaded dot operator for all multiplicative pairings 
+-- | Heavily overloaded dot operator for multiplicative pairings 
 class (Domain x, Domain y, Domain z) ⇒ Dot x y z | x y → z where
     dot ∷ Mor (x, y) z
 
@@ -520,4 +512,20 @@ cholInverse = chol . composeChol . f . decomposeChol
 -- | determinant of the lower Cholesky factor
 cholDet ∷ ∀ n. (KnownNat n, 1 <= n) ⇒ Mor (Σp n) (ℝp 1)
 cholDet = Mor $ linear (LA.konst 1) . pr1' @_ @n
+
+-- | logarithm
+logD ∷ KnownNat n ⇒ Mor (ℝp n) (ℝ n)
+logD = Mor id
+
+-- | exponential
+expD ∷ KnownNat n ⇒ Mor (ℝ n) (ℝp n)
+expD = Mor id
+
+-- | logit
+logitD ∷ KnownNat n ⇒ Mor (I n) (ℝ n)
+logitD = Mor id
+
+-- | logistic 
+logisticD ∷ KnownNat n ⇒ Mor (ℝ n) (I n)
+logisticD = Mor id
 
