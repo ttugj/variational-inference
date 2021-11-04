@@ -380,11 +380,14 @@ instance {-# OVERLAPPABLE #-} KnownNat n ⇒ M 1 n ≌ ℝ n
 instance (KnownNat m, KnownNat n) ⇒ Dot (M m n) (ℝ n) (ℝ m) where
     dot = iso . mm @m @n @1 . bimap id osi
 
-instance (KnownNat n, 1 <= n) ⇒ Dot (Lo n) (ℝ n) (ℝ n) where
+instance (KnownNat n, x ⊂ M n n) ⇒ Dot x (ℝ n) (ℝ n) where
     dot = iso . mm @n @n @1 . bimap emb osi
 
 instance (KnownNat m, KnownNat n) ⇒ Dot (ℝ m) (M m n) (ℝ n) where
     dot = iso . mm @1 @m @n . bimap osi id 
+
+instance (KnownNat n, x ⊂ M n n) ⇒ Dot (ℝ n) x (ℝ n) where
+    dot = iso . mm @1 @n @n . bimap osi emb
 
 instance KnownNat n ⇒ Dot (ℝ n) (ℝ n) (ℝ 1) where
     dot = iso . mm @1 @n @1 . bimap osi osi
@@ -493,7 +496,7 @@ toNil = Mor $ 0 ⊙ pr2' @J @n
 decomposeChol ∷ ∀ n. (KnownNat n, 1 <= n) ⇒ Mor (Σp n) (ℝp n, Lo n)
 decomposeChol = toDiag × (toNil . chol)
 
--- | inverse of 'decomposeChol'
+-- | left inverse of 'decomposeChol'
 composeChol ∷ ∀ n. (KnownNat n, 1 <= n) ⇒ Mor (ℝp n, Lo n) (Σp n)
 composeChol = Mor $ bimap' @J @n @(n + (n * (n - 1)) `Div` 2) id (pr2' @J @n)
 
