@@ -40,11 +40,14 @@ module VI.Domains ( -- * Cartesian category of domains
                     -- * Concrete presentation
                   , Concrete(..), getPoint, real, realp
                     -- * General structures 
-                  , type(⊂)(..), type(≌)(..)
-                  , Based(..), Add(..), Ab(..), Mul(..), AbM(..), ScaleP(..), Scale(..), Lerp(..), Invol(..), Dot(..), (∙)
-                    -- * Assorted morphisms
-                    -- ** Matrix
+                  , type(≌)(..)
+                  , type(⊂)(..)
+                  , Based(..)
+                  , Add(..), Ab(..), Mul(..), AbM(..), ScaleP(..), Scale(..), Lerp(..), Invol(..)
+                  , Dot(..), (∙)
                   , Square(..)
+                    -- * Individual morphisms
+                    -- ** Matrix
                   , tr, sym, tril, chol, cholInverse, cholDet, mm, mmT
                   , toNil, decomposeChol, composeChol 
                     -- ** Other
@@ -184,7 +187,6 @@ instance {-# OVERLAPPABLE #-} (x ⊂ y, y ⊂ x, Dim x ~ Dim y) ⇒ x ≌ y wher
 
 instance KnownNat n ⇒ M n 1 ≌ ℝ n
 instance {-# OVERLAPPABLE #-} KnownNat n ⇒ M 1 n ≌ ℝ n
-
 
 {-
  -  Embeddings
@@ -463,6 +465,7 @@ instance (KnownNat n, 1 <= n) ⇒ Based (Σp n)
  -  Square
  -}
 
+-- | Square matrices
 class Domain x ⇒ Square x where
     type Diag x
     toDiag      ∷ Mor x (Diag x)

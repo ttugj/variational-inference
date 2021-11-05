@@ -1,4 +1,4 @@
-{-# LANGUAGE UnicodeSyntax, PolyKinds, DataKinds, TypeFamilies, TypeOperators, GADTs, ConstraintKinds, TypeApplications, AllowAmbiguousTypes, NoImplicitPrelude, UndecidableInstances, NoStarIsType, MultiParamTypeClasses, FlexibleInstances, FlexibleContexts, LiberalTypeSynonyms, ScopedTypeVariables, InstanceSigs, DefaultSignatures, FunctionalDependencies, RankNTypes #-}
+{-# LANGUAGE UnicodeSyntax, PolyKinds, DataKinds, TypeFamilies, TypeOperators, GADTs, ConstraintKinds, TypeApplications, AllowAmbiguousTypes, NoImplicitPrelude, UndecidableInstances, NoStarIsType, MultiParamTypeClasses, FlexibleInstances, FlexibleContexts, LiberalTypeSynonyms, ScopedTypeVariables, InstanceSigs, DefaultSignatures, FunctionalDependencies, RankNTypes, GeneralisedNewtypeDeriving, StandaloneDeriving #-}
 
 {-# OPTIONS_GHC -fplugin GHC.TypeLits.Extra.Solver #-}
 {-# OPTIONS_GHC -fplugin GHC.TypeLits.KnownNat.Solver #-}
@@ -9,9 +9,9 @@ module VI.Disintegrations ( -- * Disintegrations
                             Disintegration(..), mix', (◎)
                           , Couple(..)
                             -- * Disintegrations over domains
-                            -- ** general
-                          , Density(..), pseudoConditional, Sampler(..), push 
-                            -- ** particular
+                            -- ** General types
+                          , Density(..), pseudoConditional, SampleM(..), executeSample, Sampler(..), push 
+                            -- ** Particular instances 
                           , gaussian, genericGaussian 
                             -- * Divergence
                           , divergenceSample
@@ -31,8 +31,12 @@ import GHC.TypeLits
 import Data.Functor
 import Control.Applicative
 import Control.Monad
+import Control.Monad.Primitive
+import Control.Monad.Reader
 import System.Random.Stateful
+import System.IO
 
+import qualified System.Random.MWC               as MWC
 import qualified System.Random.MWC.Distributions as MWC
 import qualified Data.Vector.Generic             as G
 import qualified Numeric.LinearAlgebra.Static    as LA
@@ -76,7 +80,15 @@ data Density x y where
     Density ∷ (Domain x, Domain y) ⇒ Mor (x, y) (ℝp 1) → Density x y
 
 class Monad m ⇒ SampleM m where
-    sample ∷ (∀ g. StatefulGen g m ⇒ g → m a) → m a
+    sample ∷ (∀ g m'. StatefulGen g m' ⇒ g → m' a) → m a
+
+newtype SampleT m a = SampleT { runSampleT ∷ ReaderT (MWC.Gen (PrimState m)) m a } deriving (Functor, Applicative, Monad)
+
+instance PrimMonad m ⇒ SampleM (SampleT m) where
+    sample α = SampleT $ ask >>= α 
+
+executeSample ∷ ∀ a. (∀ m. SampleM m ⇒ m a) → IO a
+executeSample α = MWC.createSystemRandom >>= runReaderT (runSampleT (α ∷ SampleT IO a))
 
 -- | A reparameterisable sampler (with differentiable samples)
 data Sampler x y where
@@ -104,7 +116,6 @@ pseudoConditional (Density p) = Density $ p . assocR
 
 push ∷ ∀ x y z. Mor y z → Sampler x y → Sampler x z
 push f (Sampler s) = witness f $ Sampler $ (f .) <$> s
-
 
 -- | General multivariate normal
 gaussian ∷ ∀ n. (KnownNat n, 1 <= n) ⇒ Couple Density Sampler (ℝ n, Σp n) (ℝ n)
