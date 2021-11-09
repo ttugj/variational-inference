@@ -9,10 +9,12 @@ module VI.Disintegrations ( -- * Disintegrations
                             Disintegration(..), mix', (◎)
                           , Couple(..)
                             -- * Disintegrations over domains
-                            -- ** General types
+                            -- ** Main disintegrations: densities and samplers 
                           , Density(..), pseudoConditional, SampleM(..), executeSample, Sampler(..), push 
-                            -- ** Particular instances 
-                          , GaussianCovariance, gaussian, genericGaussian 
+                            -- ** Reparameterisation of disintegratoins
+                          , Reparam(..), pullReparam, Reparameterisable(..)
+                            -- ** Gaussians 
+                          , standardGaussian, translationReparam, GaussianCovariance, gaussian, genericGaussian 
                             -- * Divergence
                           , divergenceSample
                           ) where
@@ -117,45 +119,61 @@ pseudoConditional (Density p) = Density $ p . assocR
 push ∷ ∀ x y z. Mor y z → Sampler x y → Sampler x z
 push f (Sampler s) = witness f $ Sampler $ (f .) <$> s
 
+-- | A family of diffeomorphisms @y → z@ parameterised by @x@
+data Reparam x y z where
+    Reparam ∷ (Domain x, Domain y, Domain z) 
+            ⇒ Mor (x, y) z      -- ^ forward
+            → Mor (x, z) y      -- ^ backward
+            → Mor (x, z) (ℝp 1) -- ^ Jacobian
+            → Reparam x y z
+
+instance Domain x ⇒ Cat Domain (Reparam x) where
+    id = Reparam pr2 pr2 (realp 1)
+    (Reparam f g jac) . (Reparam f' g' jac') = Reparam (f . (pr1 × f')) (g' . (pr1 × g)) (jac ◀ mul $ jac' . (pr1 × g))
+    witness (Reparam _ _ _) a = a 
+
+-- | Base change for a family of reparameterisations
+pullReparam ∷ Mor t x → Reparam x y z → Reparam t y z
+pullReparam φ (Reparam f g jac) = witness φ $ Reparam (f . bimap φ id) (g . bimap φ id) (jac . bimap φ id)
+
+class Disintegration Domain Mor p ⇒ Reparameterisable p where
+    reparam ∷ Reparam x y z → p x y → p x z
+
+instance Reparameterisable Density where
+    reparam (Reparam _ f jac) (Density p) = Density $ p . (pr1 × f) ◀ quo $ jac
+
+instance Reparameterisable Sampler where
+    reparam (Reparam f _ _) (Sampler s) = Sampler $ (\g → f . (id × g)) <$> s
+
+instance (Reparameterisable p, Reparameterisable q) ⇒ Reparameterisable (Couple p q) where
+    reparam φ (Couple p q) = Couple (reparam φ p) (reparam φ q)
+
+translationReparam ∷ KnownNat n ⇒ Reparam (ℝ n) (ℝ n) (ℝ n)
+translationReparam = Reparam add (add . bimap neg id) (realp 1)
+
 -- | This class enables polymorphic covariance parameterisation for 'gaussian'
 class (KnownNat n, Domain x) ⇒ GaussianCovariance n x | x → n where
-    fromStd     ∷ Mor (x, ℝ n) (ℝ n)
-    toStd       ∷ Mor (x, ℝ n) (ℝ n)
-    fromStdJac  ∷ Mor x (ℝp 1)
+    covarianceReparam ∷ Reparam x (ℝ n) (ℝ n)
 
 instance (KnownNat n, 1 <= n) ⇒ GaussianCovariance n (Σp n) where
-    fromStd     = dot . bimap chol id
-    toStd       = dot . bimap cholInverse id
-    fromStdJac  = cholDet
+    covarianceReparam = Reparam (dot . bimap chol id) (dot . bimap cholInverse id) (cholDet . pr1)
 
 instance KnownNat n ⇒ GaussianCovariance n (ℝp n) where
-    fromStd     = mul . bimap emb id
-    toStd       = mul . bimap (emb . invol) id
-    fromStdJac  = Mor $ linear (LA.konst 1) 
+    covarianceReparam = Reparam (mul . bimap emb id) (mul . bimap (emb . invol) id) (Mor $ linear (LA.konst 1))
+
+standardGaussian ∷ ∀ n. KnownNat n ⇒ Couple Density Sampler Pt (ℝ n)
+standardGaussian = Couple (Density p) (Sampler s) where
+                    z = (2*pi) ** (-0.5 * (fromInteger $ natVal (Proxy ∷ Proxy n))) 
+                    p = fromPoints2 $ \_ x → let e = exp' ▶ (real (-0.5) ◀ mul $ x ∙ x)
+                                              in e ◀ quo $ realp z
+                    s ∷ ∀ m. SampleM m ⇒ m (Mor Pt (ℝ n))
+                    s = do
+                           z ← sample $ \g → fromJust @(LA.R n) . LA.create <$> G.replicateM (intVal @n) (MWC.standard g) 
+                           return $ Mor $ point z
 
 -- | General multivariate normal
 gaussian ∷ ∀ n cov. GaussianCovariance n cov ⇒ Couple Density Sampler (ℝ n, cov) (ℝ n)
-gaussian = Couple (Density p) (Sampler s) where
-            {-
-                z ~ N(0, I); φ(z) = (2π)^(-n/2) exp(-|z|²/2)
-                x = x₀ + L z ~ N(x₀, LL*)
-                log p(x) = log φ(L⁻¹(x-x₀)) - log det L
-            -}
-            -- normalising factor
-            z = (2*pi) ** (-0.5 * (fromInteger $ natVal (Proxy ∷ Proxy n))) 
-            -- standard normal pdf
-            φ = fromPoints $ \x → let e = exp' ▶ (real (-0.5) ◀ mul $ x ∙ x)
-                                   in e ◀ quo $ realp z
-            -- transformed pdf
-            p = fromPoints2 $ \par x → let loc = pr1 ▶ par
-                                           cov = pr2 ▶ par
-                                           z   = cov ◀ toStd $ (x ◀ sub $ loc)
-                                        in (φ ▶ z) ◀ quo $ fromStdJac ▶ cov
-            -- sampler
-            s ∷ ∀ m. SampleM m ⇒ m (Mor (ℝ n, cov) (ℝ n))
-            s = do
-                   z ← sample $ \g → fromJust @(LA.R n) . LA.create <$> G.replicateM (intVal @n) (MWC.standard g) 
-                   return $ fromPoints2 $ \loc cov → (cov ◀ fromStd $ (fromConcrete @n @(ℝ n) z . terminal)) ◀ add $ loc 
+gaussian = reparam (pullReparam pr1 translationReparam . pullReparam pr2 covarianceReparam) (pull @Domain @Mor terminal standardGaussian)
 
 -- | This is the default variational family, employing a multivariate normal in the canonical coordinates on a domain.
 genericGaussian ∷ ∀ x n cov. (Domain x, n ~ Dim x, GaussianCovariance n cov) ⇒ Couple Density Sampler (x, cov) x
