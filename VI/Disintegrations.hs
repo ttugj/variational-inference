@@ -12,7 +12,7 @@ module VI.Disintegrations ( -- * Disintegrations
                             -- ** General types
                           , Density(..), pseudoConditional, SampleM(..), executeSample, Sampler(..), push 
                             -- ** Particular instances 
-                          , gaussian, genericGaussian 
+                          , GaussianCovariance, gaussian, genericGaussian 
                             -- * Divergence
                           , divergenceSample
                           ) where
@@ -117,8 +117,24 @@ pseudoConditional (Density p) = Density $ p . assocR
 push ∷ ∀ x y z. Mor y z → Sampler x y → Sampler x z
 push f (Sampler s) = witness f $ Sampler $ (f .) <$> s
 
+-- | This class enables polymorphic covariance parameterisation for 'gaussian'
+class (KnownNat n, Domain x) ⇒ GaussianCovariance n x | x → n where
+    fromStd     ∷ Mor (x, ℝ n) (ℝ n)
+    toStd       ∷ Mor (x, ℝ n) (ℝ n)
+    fromStdJac  ∷ Mor x (ℝp 1)
+
+instance (KnownNat n, 1 <= n) ⇒ GaussianCovariance n (Σp n) where
+    fromStd     = dot . bimap chol id
+    toStd       = dot . bimap cholInverse id
+    fromStdJac  = cholDet
+
+instance KnownNat n ⇒ GaussianCovariance n (ℝp n) where
+    fromStd     = mul . bimap emb id
+    toStd       = mul . bimap (emb . invol) id
+    fromStdJac  = Mor $ linear (LA.konst 1) 
+
 -- | General multivariate normal
-gaussian ∷ ∀ n. (KnownNat n, 1 <= n) ⇒ Couple Density Sampler (ℝ n, Σp n) (ℝ n)
+gaussian ∷ ∀ n cov. GaussianCovariance n cov ⇒ Couple Density Sampler (ℝ n, cov) (ℝ n)
 gaussian = Couple (Density p) (Sampler s) where
             {-
                 z ~ N(0, I); φ(z) = (2π)^(-n/2) exp(-|z|²/2)
@@ -133,26 +149,25 @@ gaussian = Couple (Density p) (Sampler s) where
             -- transformed pdf
             p = fromPoints2 $ \par x → let loc = pr1 ▶ par
                                            cov = pr2 ▶ par
-                                           z   = (cholInverse ▶ cov) ∙ (x ◀ sub $ loc)
-                                        in (φ ▶ z) ◀ quo $ cholDet ▶ cov
+                                           z   = cov ◀ toStd $ (x ◀ sub $ loc)
+                                        in (φ ▶ z) ◀ quo $ fromStdJac ▶ cov
             -- sampler
-            s ∷ ∀ m. SampleM m ⇒ m (Mor (ℝ n, Σp n) (ℝ n))
+            s ∷ ∀ m. SampleM m ⇒ m (Mor (ℝ n, cov) (ℝ n))
             s = do
                    z ← sample $ \g → fromJust @(LA.R n) . LA.create <$> G.replicateM (intVal @n) (MWC.standard g) 
-                   return $ fromPoints2 $ \loc cov → ((chol ▶ cov) ∙ (fromConcrete @n @(ℝ n) z . terminal)) ◀ add $ loc 
+                   return $ fromPoints2 $ \loc cov → (cov ◀ fromStd $ (fromConcrete @n @(ℝ n) z . terminal)) ◀ add $ loc 
 
 -- | This is the default variational family, employing a multivariate normal in the canonical coordinates on a domain.
-genericGaussian ∷ ∀ x n. (Domain x, n ~ Dim x, 1 <= n) ⇒ Couple Density Sampler (x, Σp n) x
+genericGaussian ∷ ∀ x n cov. (Domain x, n ~ Dim x, GaussianCovariance n cov) ⇒ Couple Density Sampler (x, cov) x
 genericGaussian = case gaussian @n of
                      Couple (Density p) (Sampler s) → let p' = p . bimap (bimap f id) f
-                                                          s' ∷ ∀ m. SampleM m ⇒ m (Mor (x, Σp n) x)  
+                                                          s' ∷ ∀ m. SampleM m ⇒ m (Mor (x, cov) x)  
                                                           s' = s >>= \φ → return (g . φ . bimap f id)
                                                        in Couple (Density p') (Sampler s')
                     where
                       f = (Mor id) ∷ Mor x (ℝ n)
                       g = (Mor id) ∷ Mor (ℝ n) x
                      
-
 divergenceSample ∷ SampleM m ⇒ Couple Density Sampler t x → Density s x → m (Mor (t,s) (ℝ 1))
 divergenceSample (Couple (Density q) (Sampler s)) (Density p) = go <$> s where
                                                                      -- q ∷ Mor (t,x) (ℝp 1) 
