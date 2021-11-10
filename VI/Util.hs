@@ -13,8 +13,8 @@ module VI.Util (
 
 import Data.Maybe
 import Data.Proxy
-import GHC.TypeLits
-import GHC.TypeLits.Extra
+import GHC.TypeNats
+import GHC.Real
 import Data.Functor
 import Control.Monad
 import qualified Numeric.LinearAlgebra.Static as LA
@@ -45,7 +45,7 @@ lixLo n = [(e+d,e) | d ← [0..n-1], e ← [0..n-1-d]]
 lixΣ    = lixLo
 
 basisH ∷ ∀ n. KnownNat n ⇒ LA.L (n + 1) n 
-basisH = let n      = fromInteger (natVal (Proxy ∷ Proxy n))
+basisH = let n      = fromIntegral (natVal (Proxy ∷ Proxy n))
              f k i | i < k  = 1
                    | i == k = negate . fromIntegral $ k
                    | i > k  = 0
@@ -59,4 +59,4 @@ fromLtoR ∷ ∀ m n. (KnownNat m, KnownNat n) ⇒ LA.L m n → LA.R (m * n)
 fromLtoR = fromJust . LA.create . LA'.flatten . LA.extract
 
 fromRtoL ∷ ∀ m n. (KnownNat m, KnownNat n) ⇒ LA.R (m * n) → LA.L m n
-fromRtoL = fromJust . LA.create . LA'.reshape (fromInteger $ natVal (Proxy ∷ Proxy n)) . LA.extract
+fromRtoL = fromJust . LA.create . LA'.reshape (fromIntegral $ natVal (Proxy ∷ Proxy n)) . LA.extract

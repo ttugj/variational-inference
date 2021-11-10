@@ -15,8 +15,7 @@ import Data.Maybe
 import Data.Bool 
 import Data.Functor
 import Control.Applicative
-import GHC.TypeLits
-import GHC.TypeLits.Extra
+import GHC.TypeNats
 import qualified Numeric.LinearAlgebra.Static as LA
 import qualified Numeric.LinearAlgebra as LA'
 import qualified Data.List as L

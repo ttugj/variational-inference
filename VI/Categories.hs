@@ -27,7 +27,8 @@ import Control.Applicative
 import GHC.Types
 import GHC.Classes
 import GHC.Num
-import GHC.TypeLits
+import GHC.Real
+import GHC.TypeNats
 import Data.Function (($))
 import qualified Data.Function as F
 import qualified Data.Tuple as T
@@ -134,7 +135,7 @@ data Fin' (n ∷ Nat) (m ∷ Nat) where
     Fin' ∷ (KnownNat n, KnownNat m) ⇒ V.Vector Int → Fin' n m
 
 intVal ∷ ∀ n. KnownNat n ⇒ Int
-intVal = fromInteger $ natVal (Proxy ∷ Proxy n)
+intVal = fromIntegral $ natVal (Proxy ∷ Proxy n)
 
 mkFin' ∷ ∀ n m. (KnownNat n, KnownNat m) ⇒ [Int] → Fin' n m
 mkFin' js = let m = intVal @m

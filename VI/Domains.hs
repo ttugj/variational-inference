@@ -60,8 +60,7 @@ import VI.Util
 
 import Prelude                  (uncurry, flip, ($), undefined)
 
-import GHC.TypeLits
-import GHC.TypeLits.Extra
+import GHC.TypeNats
 import Data.Maybe
 import Data.Functor
 import Control.Applicative

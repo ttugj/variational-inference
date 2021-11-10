@@ -34,7 +34,7 @@ import Data.Maybe
 import Data.Kind
 import Prelude (($), uncurry, undefined)
 
-import GHC.TypeLits
+import GHC.TypeNats
 import GHC.Types
 import GHC.Classes
 import GHC.Num

@@ -28,7 +28,7 @@ import VI.Domains
 import Data.Kind
 import Data.Proxy
 import Data.Maybe
-import GHC.TypeLits
+import GHC.TypeNats
 
 import Data.Functor
 import Control.Applicative
@@ -163,7 +163,7 @@ instance KnownNat n ⇒ GaussianCovariance n (ℝp n) where
 
 standardGaussian ∷ ∀ n. KnownNat n ⇒ Couple Density Sampler Pt (ℝ n)
 standardGaussian = Couple (Density p) (Sampler s) where
-                    z = (2*pi) ** (-0.5 * (fromInteger $ natVal (Proxy ∷ Proxy n))) 
+                    z = (2*pi) ** (-0.5 * (fromIntegral $ natVal (Proxy ∷ Proxy n))) 
                     p = fromPoints2 $ \_ x → let e = exp' ▶ (real (-0.5) ◀ mul $ x ∙ x)
                                               in e ◀ quo $ realp z
                     s ∷ ∀ m. SampleM m ⇒ m (Mor Pt (ℝ n))
@@ -173,7 +173,9 @@ standardGaussian = Couple (Density p) (Sampler s) where
 
 -- | General multivariate normal
 gaussian ∷ ∀ n cov. GaussianCovariance n cov ⇒ Couple Density Sampler (ℝ n, cov) (ℝ n)
-gaussian = reparam (pullReparam pr1 translationReparam . pullReparam pr2 covarianceReparam) (pull @Domain @Mor terminal standardGaussian)
+gaussian = reparam φ μ where
+              φ = pullReparam pr1 translationReparam . pullReparam pr2 covarianceReparam
+              μ = pull @Domain @Mor terminal standardGaussian
 
 -- | This is the default variational family, employing a multivariate normal in the canonical coordinates on a domain.
 genericGaussian ∷ ∀ x n cov. (Domain x, n ~ Dim x, GaussianCovariance n cov) ⇒ Couple Density Sampler (x, cov) x
