@@ -212,7 +212,7 @@ instance (KnownNat n, 1 <= n) ⇒ Σ n ⊂ M n n where
 
 instance (KnownNat n, 1 <= n) ⇒ Lo n ⊂ M n n where
     emb = let n = intVal @n 
-              ι ∷ J ((Dim (Lo n)) + 1) (Dim (M n n))
+              ι ∷ J (Dim (Lo n) + 1) (Dim (M n n))
               ι = law . mkFin' $ fromMaybe ((n*(n+1)) `div` 2) . uncurry (ixLo n) <$> lixM n n 
            in Mor $ ι . (id ⊙ 0)
 
@@ -524,8 +524,8 @@ mm = let m = intVal @m
                             b ∷ LA.L n l = fromRtoL bf
                             y ∷ LA.R (m * l) = fromLtoR $ a LA.<> b
                             g dy = let δ  ∷ LA.L m l= fromRtoL dy 
-                                       d1 ∷ LA.R (m * n) = fromLtoR $ δ LA.<> (LA.tr b)
-                                       d2 ∷ LA.R (n * l) = fromLtoR $ (LA.tr a) LA.<> δ
+                                       d1 ∷ LA.R (m * n) = fromLtoR $ δ LA.<> LA.tr b
+                                       d2 ∷ LA.R (n * l) = fromLtoR $ LA.tr a LA.<> δ
                                        dx = d1 LA.# d2
                                     in dx
                          in (y, g)

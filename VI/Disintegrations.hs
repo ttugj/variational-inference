@@ -185,8 +185,8 @@ genericGaussian = case gaussian @n of
                                                           s' = s >>= \φ → return (g . φ . bimap f id)
                                                        in Couple (Density p') (Sampler s')
                     where
-                      f = (Mor id) ∷ Mor x (ℝ n)
-                      g = (Mor id) ∷ Mor (ℝ n) x
+                      f = Mor id ∷ Mor x (ℝ n)
+                      g = Mor id ∷ Mor (ℝ n) x
                      
 divergenceSample ∷ SampleM m ⇒ Couple Density Sampler t x → Density s x → m (Mor (t,s) (ℝ 1))
 divergenceSample (Couple (Density q) (Sampler s)) (Density p) = go <$> s where

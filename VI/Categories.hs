@@ -66,7 +66,7 @@ assocR ∷ (Cart ob c, ob x, ob y, ob z, ob (x,y), ob (y,z)) ⇒ c ((x,y),z) (x,
 assocR = (pr1 . pr1) × ((pr2 . pr1) × pr2)
 
 assocL ∷ (Cart ob c, ob x, ob y, ob z, ob (x,y), ob (y,z)) ⇒ c (x,(y,z)) ((x,y),z)
-assocL = (pr1 × (pr1 . pr2) × (pr2 . pr2))
+assocL = pr1 × (pr1 . pr2) × (pr2 . pr2)
 
 swap  ∷ (Cart ob c, ob x, ob y) ⇒ c (x,y) (y,x)
 swap  = pr2 × pr1
@@ -157,7 +157,7 @@ instance Cart' Fin' where
     pr2' ∷ ∀ n m. (KnownNat n, KnownNat m) ⇒ Fin' (n + m) m
     pr2' = let n = intVal @n
                m = intVal @m
-            in Fin' $ V.generate n $ (m +) . id
+            in Fin' $ V.generate n (m +) 
     (⊙) ∷ Fin' n m → Fin' n m' → Fin' n (m + m')
     Fin' j ⊙ Fin' k = Fin' $ j V.++ k
 
