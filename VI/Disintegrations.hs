@@ -6,11 +6,51 @@
 {-# OPTIONS_GHC -fconstraint-solver-iterations=10 #-}
 
 module VI.Disintegrations ( -- * Disintegrations
+
+-- |
+-- A disintegration on a Cartesian category \(C\) is
+-- a map \( p : Ob(C) \times Ob(C)\to Set \), with \(p(x, y)\) interpreted 
+-- as the set of families of probability distributions over @y@
+-- parameterised by @x@, together with 
+--
+--  * base-change maps extending \( p(-, y) \) to a presheaf on \( C\),
+--  * mixture maps \(p(x, y) \times p(x \times y, z) \to p(x ,y\times z)\)
+--
+-- satisfying suitable compatibility conditions with respect
+-- to each other and the Cartesian structure. In particular,
+-- mixture maps are associative, in the sense that the two
+-- possible composites 
+-- \[ p (x, y) \times p (x \times y, z) \times p (x \times y \times z, w) \to  p( x, y \times z \times w ) \] 
+-- coincide.
+--
+-- Note that we do not model marginals (these would turn a disintegration
+-- into a profunctor) and Dirac delta distributions (these would lift
+-- morphisms into disintegrations).
                             Disintegration(..), mix', (◎)
-                          , Couple(..)
+-- |
+-- One may view disintegrations over a fixed Cartesian category
+-- as objects of a symmetric monoidal category. While we won't 
+-- model disintegration morphisms, the monoidal structure is 
+-- expressed by 'Trivial' and 'Couple': 
+                          , Trivial(..), Couple(..)
+
                             -- * Disintegrations over domains
+
                             -- ** Main disintegrations: densities and samplers 
-                          , Density(..), pseudoConditional, SampleM(..), executeSample, Sampler(..), push 
+-- |
+-- We consider two fundamental disintegrations over domains:
+--
+--  * 'Density', expressing probability distributions in terms of probability
+--    densities with respect to the underlying volume measure induced by the
+--    domain's identification with a Euclidean space;
+--  * 'Sampler', expressing (families of) probability distributions by providing
+--    (pramaterised) samplers.
+--
+-- The two representations have somewhat dual features: 'Sampler' admits marginals
+-- via 'push', becoming a profunctor over the category of domains, while 'Density'
+-- admits un-normalised conditionals. 
+                          , Density(..), pseudoConditional
+                          , SampleM(..), executeSample, Sampler(..), push 
                             -- ** Reparameterisation of disintegratoins
                           , Reparam(..), pullReparam, Reparameterisable(..)
                             -- ** Gaussians 
@@ -61,6 +101,15 @@ class Cart ob c ⇒ Disintegration ob c p where
     pushAR ∷ (ob x, ob y, ob z) ⇒ p t ((x,y),z) → p t (x,(y,z))
     -- | Compatibility with monoidal structure: symmetry 
     pushS  ∷ (ob x, ob y) ⇒ p t (x,y) → p t (y,x)
+
+data Trivial x y = Trivial
+
+instance Cart ob c ⇒ Disintegration ob c Trivial where
+    pull _ Trivial = Trivial
+    mix Trivial Trivial = Trivial
+    pushAL Trivial = Trivial
+    pushAR Trivial = Trivial
+    pushS Trivial = Trivial
 
 data Couple p p' x y = Couple (p x y) (p' x y)
 
@@ -144,6 +193,9 @@ instance Reparameterisable Density where
 
 instance Reparameterisable Sampler where
     reparam (Reparam f _ _) (Sampler s) = Sampler $ (\g → f . (id × g)) <$> s
+
+instance Reparameterisable Trivial where
+    reparam _ Trivial = Trivial
 
 instance (Reparameterisable p, Reparameterisable q) ⇒ Reparameterisable (Couple p q) where
     reparam φ (Couple p q) = Couple (reparam φ p) (reparam φ q)
