@@ -5,14 +5,43 @@
 {-# OPTIONS_GHC -fplugin GHC.TypeLits.Normalise #-}
 
 module VI.Categories ( -- * Categories
+-- | 
+-- We model a category in terms of an underlying kind @k@,
+-- the type of morphisms @c ∷ k → k → 'Type'@,
+-- and a predicate @ob ∷ k → 'Constraint'@ selecting the actual objects.
+-- An empty constraint is provided by 'Unconstrained', so that we have
+-- e.g. @'Cat' 'Unconstrained' (->)@.
                        Cat(..), Unconstrained, Terminal(..)
-                       -- * Cartesian categories
+-- * Cartesian categories
+-- |
+-- For simplicity, we only model Cartesian structure in two situations:
+--
+--  * for categories with underlying kind 'Type', where the product is represented by the plain tuple type,
+--  * for categories with 'KnownNat's as objects, where the product is represented by type-level addition.
+--
+--  These correspond to the classes 'Cart' and 'Cart''. 
                      , Cart(..), bimap, assocR, assocL, swap
                      , Cart'(..), bimap'
                        -- * Pointed/point-free conversion
+-- | 
+-- Morphisms in a Cartesian category are conveniently expressed in terms of generalised points:
+--
+--   * conversion between point-free and pointful representations is facilitated by @fromPoints*@ and @toPoints*@;
+--   * a morphism @f ∷ c x y@ can be applied to a generalised point @ξ@ of @x@ using @f '▶' x@;
+--   * a morphism @g ∷ c (x,x') y@ can be applied as a binary operation to generalised points @ξ@ of @x@ and @η@ of @y@ using @x '◀' g '$' y@.
+--
+--   See 'VI.Jets.affine' for an example of this style.
                      , fromPoints, toPoints, fromPoints2, toPoints2, fromPoints2', toPoints2', fromPoints3, fromPoints3'
                      , (▶), (◀)
                        -- * Lawvere theories
+-- |
+-- We model Lawvere theories as instances @c@ of 'Cart'' together with a lift of every
+-- map \( [m] \to [n] \) of finite sets to a morphism in @c n m@. Here \([n]\) stands
+-- for the set \( \{0,\dots,n-1\} \). These sets form a skeleton of the category of
+-- finite sets, and the opposite category of this skeleton is modeled by 'Fin''.
+--
+-- The main example for our purposes is 'VI.Jets.J', approximating the theory 
+-- of Euclidean spaces and differentiable maps.
                      , Fin'(..), mkFin', Law(..), expand
                        -- * Auxiliary
                      , intVal
