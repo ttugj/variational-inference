@@ -25,7 +25,8 @@ module VI.Disintegrations ( -- * Disintegrations
 --
 -- Note that we do not model marginals (these would turn a disintegration
 -- into a profunctor) and Dirac delta distributions (these would lift
--- morphisms into disintegrations).
+-- morphisms into disintegrations). Mixture maps provide just enough structure
+-- to construct joint distributions over probabilistic programs.
                             Disintegration(..), mix', (◎)
 -- |
 -- One may view disintegrations over a fixed Cartesian category
@@ -48,10 +49,23 @@ module VI.Disintegrations ( -- * Disintegrations
 --
 -- The two representations have somewhat dual features: 'Sampler' admits marginals
 -- via 'push', becoming a profunctor over the category of domains, while 'Density'
--- admits un-normalised conditionals. 
+-- admits un-normalised conditionals via 'pseudoConditional'. For the latter to
+-- make sense, we consider elements of @'Density' x y@ as morphisms \(f : x \times y \to (0,\infty)\) of domains
+-- such that there exists a positive constant \(N_f\) such that \(N_f^{-1} f(\xi,-) : y \to (0,\infty)\) is a 
+-- probability density on \(y\) for all \(\xi\in x\).
                           , Density(..), pseudoConditional
                           , SampleM(..), executeSample, Sampler(..), push 
                             -- ** Reparameterisation of disintegratoins
+-- |
+-- 'Reparameterisable' disintegrations admit pushforwards along domain diffeomorphisms,
+-- represented as a pair of mutually inverse morphisms together with a Jacobian. More
+-- precisely, the 'Reparam' type encodes a family of diffeomorphisms between a pair of
+-- domains, parameterised by a third domain. Upon fixing the latter, 'Reparam' becomes
+-- a 'Cat'egory.
+--
+-- Both 'Density' and 'Sampler' are 'Reparameterisable'.
+-- This allows us for example to define the faimly of multivariate normal distributions in terms
+-- of a standard one, transformed by an affine map with upper-triangular linear part.
                           , Reparam(..), pullReparam, Reparameterisable(..)
                             -- ** Gaussians 
                           , standardGaussian, translationReparam, GaussianCovariance, gaussian, genericGaussian 
