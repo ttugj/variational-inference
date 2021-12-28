@@ -37,22 +37,32 @@ module VI.Disintegrations ( -- * Disintegrations
 
                             -- * Disintegrations over domains
 
-                            -- ** Main disintegrations: densities and samplers 
+                            -- ** Main disintegrations
 -- |
 -- We consider two fundamental disintegrations over domains:
 --
---  * 'Density', expressing probability distributions in terms of probability
---    densities with respect to the underlying volume measure induced by the
+--  * 'Density', expressing probability distributions in terms of densities  
+--    with respect to the underlying volume measure induced by the
 --    domain's identification with a Euclidean space;
 --  * 'Sampler', expressing (families of) probability distributions by providing
 --    (pramaterised) samplers.
 --
 -- The two representations have somewhat dual features: 'Sampler' admits marginals
 -- via 'push', becoming a profunctor over the category of domains, while 'Density'
--- admits un-normalised conditionals via 'pseudoConditional'. For the latter to
--- make sense, we consider elements of @'Density' x y@ as morphisms \(f : x \times y \to (0,\infty)\) of domains
--- such that there exists a positive constant \(N_f\) such that \(N_f^{-1} f(\xi,-) : y \to (0,\infty)\) is a 
--- probability density on \(y\) for all \(\xi\in x\).
+-- admits un-normalised conditionals via 'pseudoConditional'. 
+--
+-- For 'pseudoConditional' to
+-- make sense, we need to allow families of un-normalised densities in @'Density' x y@. Still,
+-- the normalisation constant is required to be actually constant within the family, so that
+-- proper elements of @'Density' x y@ are morphisms
+--  \(f : x \times y \to (0,\infty)\) of domains
+-- such that the map \( x\ni\xi \mapsto \int f(\xi,\eta) d\eta \in [0,\infty] \) does not depend on \(\xi\). 
+--
+-- @'Sampler' x y@ produces a family of samples in @y@ parameterised by @x@, i.e. a morphism \(x \to y\), given 
+-- access to some 'StatefulGen' in a suitable monad. This is implemented in terms of the class 'SampleM' of monads @m@
+-- that can interpret computations of the form @∀ g m'. StatefulGen g m' ⇒ g → m' a@ into @m a@.
+-- Sampling computations should be composed in the context @∀ m. 'SampleM' m@, and only finally
+-- executed using 'executeSample' (this creates a random generator in @'IO'@).
                           , Density(..), pseudoConditional
                           , SampleM(..), executeSample, Sampler(..), push 
                             -- ** Reparameterisation of disintegratoins
@@ -68,8 +78,33 @@ module VI.Disintegrations ( -- * Disintegrations
 -- of a standard one, transformed by an affine map with upper-triangular linear part.
                           , Reparam(..), pullReparam, Reparameterisable(..)
                             -- ** Gaussians 
-                          , standardGaussian, translationReparam, GaussianCovariance, gaussian, genericGaussian 
+-- |
+-- Gaussian, i.e. multivariate normal, distributions are provided in several flavours:
+--
+-- * 'standardGaussian' is the unique normal distribution on R^n with mean zero and identity covariance matrix,
+-- * 'gaussian' is the complete family of (non-degenerate) multivariate normal distributions on R^n, parameterised
+--   by mean and covariance,
+-- * 'genericGaussian' defines a family of distributions on any n-dimensional domain, using its canonical identification 
+--    with R^n.
+--
+-- Covariance may be parameterised either by the full covariance matrix (corresponding to the domain @'Σp' n@), or
+-- by its diagonal (corresponding to the domain @'Rp' n@). This is enabled by the 'GaussianCovariance' class. More 
+-- concretely, 'gaussian' is defined starting with 'standardGaussian', pushing forward by 'covarianceReparam'
+-- provided by a 'GaussianCovariance' instance (to adjust covariance), and by 'translationReparam' (to adjust mean).
+                          , standardGaussian, translationReparam, GaussianCovariance(..), gaussian, genericGaussian 
                             -- * Divergence
+-- |
+-- At the core of variational inference is the Kullback-Leibler divergence between a pair of
+-- probability distributions, as a differentiable function of their parameters. In all but simplest cases
+-- this divergence is estimated by averaging (differentiable) samples. This is implemented by 'divergenceSample',
+-- taking a pair μ, ν  of probability measures and computing the logarithm of their Radon-Nikodym derivative at a point sampled from μ.
+-- Accordingly, μ is represented by a @'Couple' 'Density' 'Sampler'@, and ν by @'Density'@. Averaging such samples produces
+-- an estimate of the KL divergence
+-- \[ D_{KL}(μ\|ν) = E_{\mu} \log \frac{d\mu}{d\nu}. \]
+-- In practice, ν will be the posterior distribution, and μ the variational family; 'divergenceSample' is then
+-- used to perform stochastic gradient descent on \(D_{KL}(μ\|ν)\). The 'Density' representations of μ and ν need not be
+-- normalised: a global normalisation factor does not affect the gradient. In particular, ν may be obtained as a
+-- 'pseudoConditional' of a joint prior distribution with respect to observed data.
                           , divergenceSample
                           ) where
 
