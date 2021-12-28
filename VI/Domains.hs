@@ -8,38 +8,51 @@
 module VI.Domains ( -- * Cartesian category of domains
 
 -- |
--- A domain is a space together with a chosen identification 
--- with R^n for some natural n; that is, a global coordinate.
+-- A domain is a space together with a distinguished identification 
+-- with the Euclidean space \(\mathbb{R}^n\) for some natural \(n\); that is, a global coordinate.
 --
--- Morphisms between domains are specified as 1-jets
--- of differentiable maps between corresponding R^n's.
--- Domains form a Cartesian category (see 'Cart'), with '(,)' as product,
--- equivalent to 'Jet'. The additional structure comes in the form of
--- distinguished embeddings (see '⊂') and a other structural maps. The purpose
+-- Morphisms (see 'Mor') between domains are specified as 1-jets
+-- of differentiable maps between corresponding Euclidean spaces.
+-- Domains form a Cartesian category (see 'Cat' and 'Cart'), with '(,)' as product,
+-- equivalent to 'J'. 
+-- Their purpose
 -- is to serve as parameter domains as well as target spaces for families 
 -- of probability distributions.
---
--- For reference, we exhibit basic domains as open subsets
--- of (possibly a subspace in) some R^m, and specify the
--- coordinate:
---
--- [@ℝ n@] All of R^n, with identity coordinate.
--- [@ℝp n@] Positive orthant of R^n, with elementwise logarithm coordinate.
--- [@I n@] Positive unit cube in R^n, with elementwise logit coordinate.
--- [@Δ n@] The n-simplex in R^{n+1}, with coordinate p -> log p - 1/(n+1) Σ log p mapping onto the hyperplane orthogonal to (1,...,1) in R^{n+1}.
--- [@M n m@] All n × m matrices, identified with R^{nm} with row-major order.
--- [@Lo n@] Lower-triangular n × n matrices, indentified with R^{(n(n+1)/2} with diag-major order.
--- [@Σ n@] Symmetric n × n matrices, identified with R^{n(n+1)/2} using lower triangular part.
--- [@Σp n@] Positive n × n matrices, identified with R^{n(n+1)/2} using lower triangular Cholesky factor, with logarithm applied to diagonal elements.
---
--- The latter three require 1 <= n to make KnownNat inference simpler. 
---
                     Dim, Domain, Mor(..)
                     -- * Basic domains
+-- |
+-- We present basic domains as open subsets
+-- of (possibly a subspace in) some \(\mathbb{R}^m\), and specify the
+-- coordinate:
+--
+-- [@ℝ n@] All of \(\mathbb{R}^n\), with identity coordinate.
+-- [@ℝp n@] Positive orthant of \(\mathbb{R}^n\), with elementwise logarithm coordinate.
+-- [@I n@] Positive unit cube in \(\mathbb{R}^n\), with elementwise logit coordinate.
+-- [@Δ n@] The n-simplex in \(\mathbb{R}^{n+1}\), with coordinate \(p \mapsto \log p - \frac{1}{n+1} \sum\log p\) mapping onto the hyperplane orthogonal to \((1,...,1)\) in \(\mathbb{R}^{n+1}\).
+-- [@M n m@] All n × m matrices, identified with \(\mathbb{R^{nm}}\) with row-major order.
+-- [@Lo n@] Lower-triangular n × n matrices, indentified with \(\mathbb{R}^{\frac{n(n+1)}{2}}\) with diag-major order.
+-- [@Σ n@] Symmetric n × n matrices, identified with \(\mathbb{R}^{\frac{n(n+1)}{2}}\) using lower triangular part.
+-- [@Σp n@] Positive n × n matrices, identified with \(\mathbb{R}^{\frac{n(n+1)}{2}}\) using lower triangular Cholesky factor, with logarithm applied to diagonal elements.
+--
+-- The above concrete presentations are accessible via the class 'Concrete'. In particular, a morphism from the point 'Pt' into a domain,
+-- viewed as a concrete point of the ambient Euclidean space, has coordinates given by 'getPoint'. Two auxiliary functions, 'real' and 'realp',
+-- convert concrete real (resp. positive real) numbers into constant morphisms into @ℝ 1@ (resp. @ℝp 1@).
                   , Pt, ℝ, ℝp, I, Δ, M, Σ, Σp, Lo
-                    -- * Concrete presentation
                   , Concrete(..), getPoint, real, realp
                     -- * General structures 
+-- |
+-- Additional structures on domains are expressed in terms of several type classes:
+--
+-- * '≌' and '⊂' define canonical isomorphisms and embeddings;
+-- * 'Based' defines canonical basepoints;
+-- * 'Add' defines an additive semigroup structure, extended by 'Ab' to an abelian group structure;
+-- * 'Mul' defines a multiplicative semigroup structure, extended by 'AbM' to an abelian group structure;
+-- * 'ScaleP' defines a multiplicative action of @ℝp 1@, extended by 'Scale' to an action of @ℝ 1@;
+-- * 'Lerp' defines a convex structure;
+-- * 'Invol' defines a distinguished involution.
+--
+-- Furthermore, the class 'Dot' is used to introduce a highly overloaded operator '∙' expressing
+-- various multiplicative pairings, including matrix multiplication. It is best used in pointful style (see '◀').
                   , type(≌)(..)
                   , type(⊂)(..)
                   , Based(..)
@@ -47,11 +60,13 @@ module VI.Domains ( -- * Cartesian category of domains
                   , Dot(..), (∙)
                   , Square(..)
                     -- * Individual morphisms
-                    -- ** Matrix
+-- |
+-- Many other natural morphisms, not covered by the above classes, are defined in what follows.
+-- These include standard diffeomorphisms between @ℝp@, @ℝ@ and @I@ (logarithm, the logistic function, and their inverses),
+-- as well as basic linear algebra.
+                  , log', exp', logit, logistic, simplexProjection
                   , tr, sym, tril, chol, cholInverse, cholDet, mm, mmT
                   , toNil, decomposeChol, composeChol 
-                    -- ** Other
-                  , log', exp', logit, logistic, simplexProjection
                   ) where
 
 import VI.Categories

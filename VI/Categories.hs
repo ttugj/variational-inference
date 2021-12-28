@@ -39,9 +39,7 @@ module VI.Categories ( -- * Categories
 -- map \( [m] \to [n] \) of finite sets to a morphism in @c n m@. Here \([n]\) stands
 -- for the set \( \{0,\dots,n-1\} \). These sets form a skeleton of the category of
 -- finite sets, and the opposite category of this skeleton is modeled by 'Fin''.
---
--- The main example for our purposes is 'VI.Jets.J', approximating the theory 
--- of Euclidean spaces and differentiable maps.
+-- The main example for our purposes is 'VI.Jets.J'.
                      , Fin'(..), mkFin', Law(..), expand
                        -- * Auxiliary
                      , intVal

@@ -4,10 +4,7 @@
 {-# OPTIONS_GHC -fplugin GHC.TypeLits.KnownNat.Solver #-}
 {-# OPTIONS_GHC -fplugin GHC.TypeLits.Normalise #-}
 
-module VI.Util ( 
-        -- |
-        -- This module collects certain data that actually needs to be computed.
-                 ixM, ixΣ, ixLo, lixM, lixΣ, lixLo, basisH 
+module VI.Util ( ixM, ixΣ, ixLo, lixM, lixΣ, lixLo, basisH 
                , fromLtoR, fromRtoL
                ) where
 
