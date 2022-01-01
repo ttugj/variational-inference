@@ -6,6 +6,20 @@
 {-# OPTIONS_GHC -fconstraint-solver-iterations=10 #-}
 
 module VI.Test ( -- * General classes for tests  
+        -- 
+        -- |
+        -- This module provides a rudimentary testing framework,
+        -- where a typical property is expressed as an equality
+        -- between two morphisms of domains.
+        --
+        -- The class 'Test' is instantiated by testable types, in particular @'Mor' x y@.
+        --
+        -- A typical test is of the form
+        -- @someT ∷ Pair x y@, and can be run as
+        --
+        -- @ withTolerance ε (doTest' someT) ∷ IO Bool @
+        --
+        -- where @ε ∷ Double@ is a reasonably minuscule positive real number.
                  Test(..), TestM(..), doTest'
                , withTolerance
                  -- * Assorted tests
@@ -23,6 +37,7 @@ module VI.Test ( -- * General classes for tests
 import VI.Categories
 import VI.Jets
 import VI.Domains
+import VI.Disintegrations
 
 import Control.Applicative
 import Control.Monad

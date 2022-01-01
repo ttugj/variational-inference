@@ -82,7 +82,7 @@ instance Cat Unconstrained (->) where
 class Cat (ob ∷ Type → Constraint) c ⇒ Cart ob c where
     pr1 ∷ (ob x, ob y) ⇒ c (x,y) x
     pr2 ∷ (ob x, ob y) ⇒ c (x,y) y
-    (×) ∷ c x y → c x y' → c x (y,y')                 -- ^K \/
+    (×) ∷ c x y → c x y' → c x (y,y')                 -- digraph: ^K \/
 
 instance Cart Unconstrained (->) where
     pr1 = T.fst
@@ -105,7 +105,7 @@ bimap f g = witness f $ witness g $ (f . pr1) × (g . pr2)
 class Cat KnownNat (c ∷ Nat → Nat → Type) ⇒ Cart' c where
     pr1' ∷ (KnownNat n, KnownNat m) ⇒ c (n + m) n
     pr2' ∷ (KnownNat n, KnownNat m) ⇒ c (n + m) m
-    (⊙)  ∷ c n m → c n m' → c n (m + m')                -- ^K 0.
+    (⊙)  ∷ c n m → c n m' → c n (m + m')                -- digraph: ^K 0.
 
 bimap' ∷ ∀ c x x' y y'. Cart' c ⇒ c x y → c x' y' → c (x + x') (y + y')
 bimap' f g = witness f $ witness g $ (f . pr1') ⊙ (g . pr2')
