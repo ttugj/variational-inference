@@ -30,6 +30,8 @@ module VI.Test ( -- * General classes for tests
                , mmAssociativeT, mmTT
                , lerpSimplexIntervalT
                , cholInverseT
+                 -- ** Disintegrations
+               , standardGaussianT 
                  -- * Debugging
                , valueAtPoint, gradAtPoint, evalAtPoint, getMatrix, randomPoint
                ) where
@@ -53,6 +55,7 @@ import GHC.TypeNats
 import GHC.Types
 import GHC.Classes
 import GHC.Num
+import GHC.Real
 
 import qualified Numeric.LinearAlgebra.Static as LA
 import qualified Numeric.LinearAlgebra        as LA'
@@ -63,7 +66,7 @@ import           System.Random.Stateful
 import qualified Data.Vector.Generic          as G
 
 class Monad m ⇒ TestM m where
-    sample ∷ KnownNat n ⇒ m (LA.R n)
+    sampleR ∷ KnownNat n ⇒ m (LA.R n)
     judgeR ∷ KnownNat n ⇒ LA.R n → m Bool
     judgeL ∷ (KnownNat n, KnownNat k) ⇒ LA.L n k → m Bool
 
@@ -80,7 +83,7 @@ instance (KnownNat n, KnownNat k) ⇒ Test (LA.L n k) where
     doTest a b = judgeL (a - b)
 
 instance (KnownNat n, Test a) ⇒ Test (LA.R n → a) where
-    doTest f g = sample >>= doTest <$> f <*> g 
+    doTest f g = sampleR >>= doTest <$> f <*> g 
 
 instance (KnownNat n, KnownNat k) ⇒ Test (J n k) where
     doTest (J φ) (J ψ) = doTest φ ψ 
@@ -95,8 +98,8 @@ data TestContext m = TestContext { gen ∷ MWC.Gen (PrimState m)
                                  , tol ∷ Double
                                  }
 instance PrimMonad m ⇒ TestM (ReaderT (TestContext m) m) where
-    sample ∷ ∀ n. KnownNat n ⇒ ReaderT (TestContext m) m (LA.R n)
-    sample = do
+    sampleR ∷ ∀ n. KnownNat n ⇒ ReaderT (TestContext m) m (LA.R n)
+    sampleR = do
                 let n = intVal @n
                 g ← asks gen 
                 ~(Just xu) ← LA.create <$> G.replicateM n (MWC.uniformRM (-2,2) g)
@@ -135,6 +138,12 @@ lerpSimplexIntervalT = (pr1 . osi @(ℝp 1, ℝp 1) . emb @(Δ 1) @(ℝp 2) . le
 cholInverseT ∷ ∀ n. (KnownNat n, 1 <= n) ⇒ Pair (Σp n) (Lo n)
 cholInverseT = (mul . (cholInverse × chol), chol . basePt . terminal)
 
+standardGaussianT ∷ ∀ n. (KnownNat n, 1 <= n) ⇒ Pair (ℝ 1) (ℝp 1)
+standardGaussianT = let Couple (Density p) _ = pull (real 0 × realp 1) gaussian
+                        Couple (Density q) _ = standardGaussian
+                        f                    = terminal × id
+                     in (p . f, q . f)
+
 valueAtPoint ∷ ∀ (x ∷ Type) (y ∷ Type) (n ∷ Nat) (m ∷ Nat). (Concrete n x, Concrete m y) ⇒ Mor x y → LA.R n → LA.R m
 valueAtPoint φ p = getPoint $ φ . fromConcrete p
 
@@ -161,4 +170,9 @@ randomPoint = do
                 gen ← MWC.createSystemRandom 
                 Just xu ← LA.create <$> G.replicateM (intVal @(Dim x)) (MWC.uniformRM (-2,2) gen)
                 return $ Mor $ point xu
+
+tabularise ∷ ∀ x y. (Dim x ~ 1, Dim y ~ 1) ⇒ Double → Double → Int → Mor x y → [(Double, Double)]
+tabularise lo hi n (Mor (J φ)) = let f ξ = pr1 . LA.headTail . pr1 . φ $ LA.konst ξ
+                                     ξs  = [ lo + (hi - lo) * fromIntegral i / fromIntegral n| i ← [0..n]]
+                                  in [ (ξ, f ξ) | ξ ← ξs ] 
 
