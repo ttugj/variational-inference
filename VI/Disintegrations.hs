@@ -62,9 +62,9 @@ module VI.Disintegrations ( -- * Disintegrations
 -- access to some 'StatefulGen' in a suitable monad. This is implemented in terms of the class 'SampleM' of monads @m@
 -- that can interpret computations of the form @∀ g m'. StatefulGen g m' ⇒ g → m' a@ into @m a@.
 -- Sampling computations should be composed in the context @∀ m. 'SampleM' m@, and only finally
--- executed using 'executeSample' (this creates a random generator in @'IO'@).
+-- executed using 'executeSampleIO' (this creates a random generator in @'IO'@).
                           , Density(..), pseudoConditional
-                          , SampleM(..), executeSample, Sampler(..), push 
+                          , SampleM(..), executeSampleIO, Sampler(..), push 
                             -- ** Reparameterisation of disintegratoins
 -- |
 -- 'Reparameterisable' disintegrations admit pushforwards along domain diffeomorphisms,
@@ -124,6 +124,7 @@ import Control.Applicative
 import Control.Monad
 import Control.Monad.Primitive
 import Control.Monad.Reader
+import Control.Monad.IO.Class
 import System.Random.Stateful
 import System.IO
 
@@ -187,8 +188,11 @@ newtype SampleT m a = SampleT { runSampleT ∷ ReaderT (MWC.Gen (PrimState m)) m
 instance PrimMonad m ⇒ SampleM (SampleT m) where
     sample α = SampleT $ ask >>= α 
 
-executeSample ∷ ∀ a. (∀ m. SampleM m ⇒ m a) → IO a
-executeSample α = MWC.createSystemRandom >>= runReaderT (runSampleT (α ∷ SampleT IO a))
+instance MonadIO m ⇒ MonadIO (SampleT m) where
+    liftIO α = SampleT $ liftIO α
+
+executeSampleIO ∷ ∀ a. (∀ m. (SampleM m, MonadIO m) ⇒ m a) → IO a
+executeSampleIO α = MWC.createSystemRandom >>= runReaderT (runSampleT (α ∷ SampleT IO a)) 
 
 -- | A reparameterisable sampler (with differentiable samples)
 data Sampler x y where
@@ -260,11 +264,11 @@ instance (KnownNat n, 1 <= n) ⇒ GaussianCovariance n (Σp n) where
     covarianceReparam = Reparam (dot . bimap chol id) (dot . bimap cholInverse id) (cholDet . pr1)
 
 instance KnownNat n ⇒ GaussianCovariance n (ℝp n) where
-    covarianceReparam = Reparam (mul . bimap emb id) (mul . bimap (emb . invol) id) (Mor $ linear (LA.konst 1))
+    covarianceReparam = Reparam (mul . bimap emb id) (mul . bimap (emb . invol) id) ((Mor $ linear (LA.konst 1)) . pr1)
 
 standardGaussian ∷ ∀ n. KnownNat n ⇒ Couple Density Sampler Pt (ℝ n)
 standardGaussian = Couple (Density p) (Sampler s) where
-                    z = (2*pi) ** (-0.5 * (fromIntegral $ natVal (Proxy ∷ Proxy n))) 
+                    z = (2*pi) ** (0.5 * (fromIntegral $ natVal (Proxy ∷ Proxy n))) 
                     p = fromPoints2 $ \_ x → let e = exp' ▶ (real (-0.5) ◀ mul $ x ∙ x)
                                               in e ◀ quo $ realp z
                     s ∷ ∀ m. SampleM m ⇒ m (Mor Pt (ℝ n))
