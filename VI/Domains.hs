@@ -65,7 +65,7 @@ module VI.Domains ( -- * Cartesian category of domains
 -- These include standard diffeomorphisms between @ℝp@, @ℝ@ and @I@ (logarithm, the logistic function, and their inverses),
 -- as well as basic linear algebra.
                   , log', exp', logit, logistic, simplexProjection
-                  , tr, sym, tril, chol, cholInverse, cholDet, mm, mmT
+                  , tr, sym, tril, chol, cholInverse, cholDet, prodP, mm, mmT
                   , toNil, decomposeChol, composeChol 
                   ) where
 
@@ -587,6 +587,10 @@ cholInverse = chol . composeChol . f . decomposeChol
 -- | determinant of the lower Cholesky factor
 cholDet ∷ ∀ n. (KnownNat n, 1 <= n) ⇒ Mor (Σp n) (ℝp 1)
 cholDet = Mor $ linear (LA.konst 1) . pr1' @_ @n
+
+-- | product of positive reals
+prodP ∷ KnownNat n ⇒ Mor (ℝp n) (ℝp 1)
+prodP = Mor $ linear (LA.konst 1)
 
 -- | logarithm
 log' ∷ KnownNat n ⇒ Mor (ℝp n) (ℝ n)

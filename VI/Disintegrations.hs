@@ -264,7 +264,7 @@ instance (KnownNat n, 1 <= n) ⇒ GaussianCovariance n (Σp n) where
     covarianceReparam = Reparam (dot . bimap chol id) (dot . bimap cholInverse id) (cholDet . pr1)
 
 instance KnownNat n ⇒ GaussianCovariance n (ℝp n) where
-    covarianceReparam = Reparam (mul . bimap emb id) (mul . bimap (emb . invol) id) ((Mor $ linear (LA.konst 1)) . pr1)
+    covarianceReparam = Reparam (mul . bimap emb id) (mul . bimap (emb . invol) id) (prodP . pr1)
 
 standardGaussian ∷ ∀ n. KnownNat n ⇒ Couple Density Sampler Pt (ℝ n)
 standardGaussian = Couple (Density p) (Sampler s) where
