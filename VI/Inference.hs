@@ -1,12 +1,12 @@
 {-# LANGUAGE UnicodeSyntax, PolyKinds, DataKinds, TypeFamilies, TypeOperators, GADTs, ConstraintKinds, TypeApplications, AllowAmbiguousTypes, NoImplicitPrelude, UndecidableInstances, NoStarIsType, MultiParamTypeClasses, FlexibleInstances, FlexibleContexts, LiberalTypeSynonyms, ScopedTypeVariables, InstanceSigs, DefaultSignatures, RankNTypes, TupleSections, BangPatterns, RecordWildCards #-}
 
 module VI.Inference ( -- * SGD on divergence
-                      -- ** Optimiser abstraction
+                      -- ** Optimiser abstractions
                       Loss, Optimiser, Loss', Optimiser', OptimiserState(..)
-                    , chunked
+                    , chunked, Plan(..), optimise, optimise', optimiseIO, optimiseIO'
                       -- ** Concrete optimisers
                     , plainSGD
-                    , AdamState, AdamParams(..), adamParams, adamSGD
+                    , AdamState, AdamParams(..), defaultAdamParams, adamSGD
                       -- ** Debugging
                     , monitor, demo
                     ) where
@@ -24,6 +24,7 @@ import GHC.Float
 import GHC.Show
 import Control.Monad
 import Control.Monad.IO.Class
+import Data.Tuple       (uncurry)
 import Data.Function    (const, ($))
 import Data.Functor
 import Data.Maybe
@@ -68,9 +69,72 @@ monitor opt loss init chunk
                    Nothing → 0
             go ∷ ∀ m. (SampleM m, MonadIO m) ⇒ s → LA.R (Dim x) → Int → m ()
             go s p i = do
-                   (s', p', g) ← chunked chunk opt loss s p
-                   liftIO . putStrLn . L.unwords $ [ "epoch", show i, "loss", show g, "point", show p' ]
-                   go s' p' (i+1)
+                           (s', p', g) ← chunked chunk opt loss s p
+                           liftIO . putStrLn . L.unwords $ [ "epoch", show i, "loss", show g, "point", show p' ]
+                           go s' p' (i+1)
+
+-- | Optimisation plan
+data Plan = Plan { planThreshold ∷ Double    -- ^ loss threshold
+                 , planMaxSteps  ∷ Int       -- ^ max optimisation steps
+                 , planChunkSize ∷ Int       -- ^ chunk size for averaging loss and callbacks
+                 }
+
+defaultPlan ∷ Plan
+defaultPlan = Plan 1.0e-4 100000 1000
+
+-- | Optimise according to plan, terminating once 
+-- loss falls below threshold or max number of steps
+-- exceeded. 
+optimise ∷ ∀ m s x. (SampleM m, OptimiserState s x)
+         ⇒ (Mor Pt x → Double → m ())   -- ^ callback
+         → Plan                         -- ^ optimisation plan
+         → Optimiser' s x               -- ^ optimiser
+         → Loss' x                      -- ^ loss
+         → Maybe (Mor Pt x)             -- ^ initial point
+         → m (Mor Pt x, Double)
+optimise cb Plan{..} opt loss init
+         = go s0 p0 0 where 
+                    s0 = initState @s @x
+                    p0 = case init of
+                           Just (Mor (J φ)) → pr1 (φ 0)
+                           Nothing → 0
+                    go s p i = do
+                                   (s', p', g) ← chunked planChunkSize opt loss s p
+                                   let π = Mor (point p) 
+                                   cb π g
+                                   if i * planChunkSize < planMaxSteps && g > planThreshold then go s' p' (i+1)
+                                                                                            else return (π, g)
+
+-- | 'optimise' without callback
+optimise' ∷ (SampleM m, OptimiserState s x)                                 
+          ⇒ Plan                         -- ^ optimisation plan
+          → Optimiser' s x               -- ^ optimiser
+          → Loss' x                      -- ^ loss
+          → Maybe (Mor Pt x)             -- ^ initial point
+          → m (Mor Pt x, Double)
+optimise' = optimise $ \_ _ → return ()
+
+-- | 'optimise' in 'IO'
+optimiseIO ∷ ∀ s x. OptimiserState s x
+           ⇒ (∀ m. MonadIO m ⇒ Mor Pt x → Double → m ())  -- ^ callback
+           → Plan                                         -- ^ optimisation plan
+           → Optimiser' s x                               -- ^ optimiser
+           → Loss' x                                      -- ^ loss
+           → Maybe (Mor Pt x)                             -- ^ initial point
+           → IO (Mor Pt x, Double)
+optimiseIO cb plan opt loss init 
+           = executeSampleIO α where
+                α ∷ ∀ m. (SampleM m, MonadIO m) ⇒ m (Mor Pt x, Double)
+                α = optimise cb plan opt loss init
+
+-- | 'optimiseIO' without callback
+optimiseIO' ∷ ∀ s x. OptimiserState s x
+            ⇒ Plan                                         -- ^ optimisation plan
+            → Optimiser' s x                               -- ^ optimiser
+            → Loss' x                                      -- ^ loss
+            → Maybe (Mor Pt x)                             -- ^ initial point
+            → IO (Mor Pt x, Double)
+optimiseIO' = optimiseIO $ \_ _ → return () 
 
 -- | Plain constant-rate SGD optimiser
 plainSGD ∷ Double → Optimiser' () x
@@ -113,8 +177,8 @@ data AdamParams = AdamParams { adamRate ∷ Double
                              } 
 
 -- | Default ADAM parameters
-adamParams ∷ AdamParams
-adamParams = AdamParams 0.001 0.9 0.999 1.0e-7
+defaultAdamParams ∷ AdamParams
+defaultAdamParams = AdamParams 0.001 0.9 0.999 1.0e-7
 
 -- | Plain ADAM optimiser
 adamSGD ∷ AdamParams → Optimiser' (AdamState x) x 
@@ -130,8 +194,10 @@ adamSGD  params@AdamParams{..} loss state p
            in go <$> loss
 
 demo ∷ IO ()
-demo = putStrLn "* target: 3.14, 1.00" >> monitor (adamSGD adamParams) loss Nothing 1000
+demo = putStrLn "* target: 3.14, 2.72" >> optimiseIO cb defaultPlan (adamSGD defaultAdamParams) loss Nothing >>= uncurry cb 
             where
+                    cb ∷ ∀ m x n. (MonadIO m, Concrete n x) ⇒ Mor Pt x → Double → m ()
+                    cb p g = liftIO . putStrLn $ L.unwords [ "loss", show g, "point", show $ getPoint p ] 
                     loss  ∷ ∀ m. SampleM m ⇒ m (Mor ((ℝ 1, ℝp 1), Pt) (ℝ 1))
                     loss  = divergenceSample variationalFamily posterior
                     variationalFamily ∷ Couple Density Sampler (ℝ 1, ℝp 1) (ℝ 1)

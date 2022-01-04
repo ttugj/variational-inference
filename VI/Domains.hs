@@ -149,6 +149,10 @@ class (Domain x, KnownNat n) ⇒ Concrete (n ∷ Nat) x | x → n where
     toConcrete      ∷ Mor x (ℝ n)    
     fromConcrete    ∷ LA.R n → Mor Pt x
 
+instance Concrete 0 Pt where
+    toConcrete      = Mor id
+    fromConcrete _  = Mor id
+
 instance {-# OVERLAPPABLE #-} (Concrete n x, Concrete m y, KnownNat l, l ~ n + m) ⇒ Concrete l (x, y) where
     toConcrete      = iso . bimap (toConcrete @n @x) (toConcrete @m @y)
     fromConcrete p  = uncurry (×) $ bimap (fromConcrete @n @x) (fromConcrete @m @y) $ LA.split @n p
