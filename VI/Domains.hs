@@ -175,7 +175,10 @@ realp x = Mor $ point $ LA.konst $ log x
  -  Isomorphisms
  -}
 
--- | Canonical isomorphism
+-- | Canonical isomorphism.
+--
+-- Note: it is convenient to define instances asymmetrically. The desired
+-- direction of the isomorphism may then be indicated distinguishing 'iso' vs. 'osi'. 
 class (Domain x, Domain y, Dim x ~ Dim y) ⇒ x ≃ y where
     iso ∷ Mor x y
     osi ∷ Mor y x
@@ -197,12 +200,6 @@ instance (Domain x, Domain y) ⇒ (x, y) ≃ (y, x) where
 instance Δ 1 ≃ I 1 where
     iso = Mor $ linear (LA.konst (sqrt 2) * LA.eye)
     osi = Mor $ linear (LA.konst (recip $ sqrt 2) * LA.eye)
-
-{-
-instance {-# OVERLAPPABLE #-} (x ⊂ y, y ⊂ x, Dim x ~ Dim y) ⇒ x ≃ y where
-    iso = emb
-    osi = emb
--}
 
 instance KnownNat n ⇒ M n 1 ≃ ℝ n
 instance {-# OVERLAPPABLE #-} KnownNat n ⇒ M 1 n ≃ ℝ n
