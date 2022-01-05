@@ -34,10 +34,10 @@ module VI.Domains ( -- * Cartesian category of domains
 -- [@Σ n@] Symmetric n × n matrices, identified with \(\mathbb{R}^{\frac{n(n+1)}{2}}\) using lower triangular part.
 -- [@Σp n@] Positive n × n matrices, identified with \(\mathbb{R}^{\frac{n(n+1)}{2}}\) using lower triangular Cholesky factor, with logarithm applied to diagonal elements.
 --
--- The above concrete presentations are accessible via the class 'Concrete'. In particular, a morphism from the point 'Pt' into a domain,
+-- The above concrete presentations are accessible via the class 'Concrete'. In particular, a morphism from the point '()' into a domain,
 -- viewed as a concrete point of the ambient Euclidean space, has coordinates given by 'getPoint'. Two auxiliary functions, 'real' and 'realp',
 -- convert concrete real (resp. positive real) numbers into constant morphisms into @ℝ 1@ (resp. @ℝp 1@).
-                  , Pt, ℝ, ℝp, I, Δ, M, Σ, Σp, Lo
+                  , ℝ, ℝp, I, Δ, M, Σ, Σp, Lo
                   , Concrete(..), getPoint, real, realp
                     -- * General structures 
 -- |
@@ -118,7 +118,6 @@ instance Cart Domain Mor where
     pr2 = Mor pr2' 
     Mor φ × Mor ψ = Mor (φ ⊙ ψ)
 
-data Pt
 data ℝ  (n ∷ Nat)
 data ℝp (n ∷ Nat)
 data I  (n ∷ Nat)
@@ -128,7 +127,7 @@ data Σ  (n ∷ Nat)
 data Σp (n ∷ Nat)
 data Lo (n ∷ Nat)
 
-type instance Dim Pt       = 0
+type instance Dim ()       = 0
 type instance Dim (ℝ  n  ) = n
 type instance Dim (ℝp n  ) = n
 type instance Dim (I  n  ) = n
@@ -138,8 +137,8 @@ type instance Dim (Σ  n  ) = n + ((n * (n - 1)) `Div` 2)
 type instance Dim (Σp n  ) = n + ((n * (n - 1)) `Div` 2)
 type instance Dim (Lo n  ) = n + ((n * (n - 1)) `Div` 2)
 
-instance Terminal Mor Domain Pt where
-    terminal = Mor 0
+instance Terminal Domain Mor () where
+    terminal = Mor terminal 
 
 {-
  -  Concrete presentation / construction
@@ -147,9 +146,9 @@ instance Terminal Mor Domain Pt where
 
 class (Domain x, KnownNat n) ⇒ Concrete (n ∷ Nat) x | x → n where
     toConcrete      ∷ Mor x (ℝ n)    
-    fromConcrete    ∷ LA.R n → Mor Pt x
+    fromConcrete    ∷ LA.R n → Mor () x
 
-instance Concrete 0 Pt where
+instance Concrete 0 () where
     toConcrete      = Mor id
     fromConcrete _  = Mor id
 
@@ -161,7 +160,7 @@ instance KnownNat n ⇒ Concrete n (ℝ n) where
     toConcrete      = id
     fromConcrete x  = Mor $ point x
    
-getPoint ∷ ∀ (n ∷ Nat) x. Concrete n x ⇒ Mor Pt x → LA.R n
+getPoint ∷ ∀ (n ∷ Nat) x. Concrete n x ⇒ Mor () x → LA.R n
 getPoint p = let Mor (J f) = toConcrete . p
                  (y, _)    = f undefined
               in y
@@ -187,8 +186,8 @@ instance (KnownNat n, KnownNat m, KnownNat l, l ~ n + m) ⇒ (ℝ n, ℝ m)   �
 instance (KnownNat n, KnownNat m, KnownNat l, l ~ n + m) ⇒ (ℝp n, ℝp m) ≌ ℝp l
 instance (KnownNat n, KnownNat m, KnownNat l, l ~ n + m) ⇒ (I n, I m)   ≌ I  l
 
-instance Domain x ⇒ (Pt, x) ≌ x
-instance Domain x ⇒ (x, Pt) ≌ x
+instance Domain x ⇒ ((), x) ≌ x
+instance Domain x ⇒ (x, ()) ≌ x
 instance (Domain x, Domain y, Domain z) ⇒ (x, (y, z)) ≌ ((x, y), z)
 
 instance (Domain x, Domain y) ⇒ (x, y) ≌ (y, x) where
@@ -468,8 +467,8 @@ instance KnownNat n ⇒ Dot (ℝ n) (ℝ n) (ℝ 1) where
 -- | Based domains
 class Domain x ⇒ Based x where
     -- | by default, the basepoint is zero in canonical coordinates
-    basePt ∷ Mor Pt x
-    basePt = Mor 0
+    basePoint ∷ Mor () x
+    basePoint = Mor 0
 
 instance KnownNat n ⇒ Based (ℝ  n)
 instance KnownNat n ⇒ Based (ℝp n)

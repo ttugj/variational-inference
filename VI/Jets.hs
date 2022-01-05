@@ -49,6 +49,9 @@ instance Cat KnownNat J where
                           in (z, dψ . dφ)
     witness (J _) a = a
 
+instance Terminal KnownNat J 0 where
+    terminal = 0
+
 instance Cart' J where
     pr1' ∷ ∀ n m. (KnownNat n, KnownNat m) ⇒ J (n + m) n
     pr1' = J $ \x → (pr1 $ LA.split @n x, (LA.# 0))

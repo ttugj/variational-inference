@@ -266,12 +266,12 @@ instance (KnownNat n, 1 <= n) ⇒ GaussianCovariance n (Σp n) where
 instance KnownNat n ⇒ GaussianCovariance n (ℝp n) where
     covarianceReparam = Reparam (mul . bimap emb id) (mul . bimap (emb . invol) id) (prodP . pr1)
 
-standardGaussian ∷ ∀ n. KnownNat n ⇒ Couple Density Sampler Pt (ℝ n)
+standardGaussian ∷ ∀ n. KnownNat n ⇒ Couple Density Sampler () (ℝ n)
 standardGaussian = Couple (Density p) (Sampler s) where
                     z = (2*pi) ** (0.5 * (fromIntegral $ natVal (Proxy ∷ Proxy n))) 
                     p = fromPoints2 $ \_ x → let e = exp' ▶ (real (-0.5) ◀ mul $ x ∙ x)
                                               in e ◀ quo $ realp z
-                    s ∷ ∀ m. SampleM m ⇒ m (Mor Pt (ℝ n))
+                    s ∷ ∀ m. SampleM m ⇒ m (Mor () (ℝ n))
                     s = do
                            z ← sample $ \g → fromJust @(LA.R n) . LA.create <$> G.replicateM (intVal @n) (MWC.standard g) 
                            return $ Mor $ point z

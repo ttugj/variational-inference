@@ -78,8 +78,14 @@ instance Cat Unconstrained (->) where
     (.) = (F..)
     witness _ a = a
 
+class Cat ob c ⇒ Terminal ob c x where
+    terminal ∷ ob y ⇒ c y x
+
+instance Terminal Unconstrained (->) () where
+    terminal _ = ()
+
 -- | Cartesian structure (over 'Type', with its free product)
-class Cat (ob ∷ Type → Constraint) c ⇒ Cart ob c where
+class (Cat (ob ∷ Type → Constraint) c, Terminal ob c ()) ⇒ Cart ob c where
     pr1 ∷ (ob x, ob y) ⇒ c (x,y) x
     pr2 ∷ (ob x, ob y) ⇒ c (x,y) y
     (×) ∷ c x y → c x y' → c x (y,y')                 -- digraph: ^K \/
@@ -102,7 +108,7 @@ bimap ∷ Cart ob c ⇒ c x y → c x' y' → c (x,x') (y,y')
 bimap f g = witness f $ witness g $ (f . pr1) × (g . pr2)
 
 -- | Cartesian structure (for a category on 'Nat's, with '+' as product)
-class Cat KnownNat (c ∷ Nat → Nat → Type) ⇒ Cart' c where
+class (Cat KnownNat (c ∷ Nat → Nat → Type), Terminal KnownNat c 0) ⇒ Cart' c where
     pr1' ∷ (KnownNat n, KnownNat m) ⇒ c (n + m) n
     pr2' ∷ (KnownNat n, KnownNat m) ⇒ c (n + m) m
     (⊙)  ∷ c n m → c n m' → c n (m + m')                -- digraph: ^K 0.
@@ -178,6 +184,9 @@ instance Cat KnownNat Fin' where
     Fin' j . Fin' k = Fin' $ V.map (k V.!) j
     witness (Fin' _) a = a
 
+instance Terminal KnownNat Fin' 0 where
+    terminal = Fin' V.empty
+
 instance Cart' Fin' where
     pr1' ∷ ∀ n m. (KnownNat n, KnownNat m) ⇒ Fin' (n + m) n
     pr1' = let n = intVal @n in Fin' $ V.generate n id
@@ -195,8 +204,4 @@ class Cart' c ⇒ Law c where
 -- | the @n@-diagonal, using 'law'
 expand ∷ ∀ n c. (KnownNat n, Law c) ⇒ c 1 n
 expand = let n = intVal @n in law $ Fin' $ V.replicate n 0
-
-
-class Cat ob c ⇒ Terminal c ob x where
-    terminal ∷ ob y ⇒ c y x
 

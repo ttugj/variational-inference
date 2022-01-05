@@ -72,12 +72,12 @@ defaultPlan = Plan 1.0e-4 100000 1000
 -- loss falls below threshold or max number of steps
 -- exceeded. 
 optimise ∷ ∀ m s x. (SampleM m, OptimiserState s x)
-         ⇒ (Mor Pt x → Double → m ())   -- ^ callback
+         ⇒ (Mor () x → Double → m ())   -- ^ callback
          → Plan                         -- ^ optimisation plan
          → Optimiser' s x               -- ^ optimiser
          → Loss' x                      -- ^ loss
-         → Maybe (Mor Pt x)             -- ^ initial point
-         → m (Mor Pt x, Double)
+         → Maybe (Mor () x)             -- ^ initial point
+         → m (Mor () x, Double)
 optimise cb Plan{..} opt loss init
          = go s0 p0 0 where 
                     s0 = initState @s @x
@@ -96,21 +96,21 @@ optimise' ∷ (SampleM m, OptimiserState s x)
           ⇒ Plan                         -- ^ optimisation plan
           → Optimiser' s x               -- ^ optimiser
           → Loss' x                      -- ^ loss
-          → Maybe (Mor Pt x)             -- ^ initial point
-          → m (Mor Pt x, Double)
+          → Maybe (Mor () x)             -- ^ initial point
+          → m (Mor () x, Double)
 optimise' = optimise $ \_ _ → return ()
 
 -- | 'optimise' in 'IO'
 optimiseIO ∷ ∀ s x. OptimiserState s x
-           ⇒ (∀ m. MonadIO m ⇒ Mor Pt x → Double → m ())  -- ^ callback
+           ⇒ (∀ m. MonadIO m ⇒ Mor () x → Double → m ())  -- ^ callback
            → Plan                                         -- ^ optimisation plan
            → Optimiser' s x                               -- ^ optimiser
            → Loss' x                                      -- ^ loss
-           → Maybe (Mor Pt x)                             -- ^ initial point
-           → IO (Mor Pt x, Double)
+           → Maybe (Mor () x)                             -- ^ initial point
+           → IO (Mor () x, Double)
 optimiseIO cb plan opt loss init 
            = executeSampleIO α where
-                α ∷ ∀ m. (SampleM m, MonadIO m) ⇒ m (Mor Pt x, Double)
+                α ∷ ∀ m. (SampleM m, MonadIO m) ⇒ m (Mor () x, Double)
                 α = optimise cb plan opt loss init
 
 -- | 'optimiseIO' without callback
@@ -118,8 +118,8 @@ optimiseIO' ∷ ∀ s x. OptimiserState s x
             ⇒ Plan                                         -- ^ optimisation plan
             → Optimiser' s x                               -- ^ optimiser
             → Loss' x                                      -- ^ loss
-            → Maybe (Mor Pt x)                             -- ^ initial point
-            → IO (Mor Pt x, Double)
+            → Maybe (Mor () x)                             -- ^ initial point
+            → IO (Mor () x, Double)
 optimiseIO' = optimiseIO $ \_ _ → return () 
 
 -- | Plain constant-rate SGD optimiser
@@ -182,19 +182,19 @@ adamSGD  params@AdamParams{..} loss state p
 demo ∷ IO ()
 demo = optimiseIO cb defaultPlan (adamSGD defaultAdamParams) loss Nothing >>= uncurry cb 
             where
-                    cb ∷ ∀ m x n. (MonadIO m, Concrete n x) ⇒ Mor Pt x → Double → m ()
+                    cb ∷ ∀ m x n. (MonadIO m, Concrete n x) ⇒ Mor () x → Double → m ()
                     cb p g = liftIO . putStrLn $ L.unwords [ "loss", show g, "point", show $ getPoint p ] 
-                    loss  ∷ ∀ m. SampleM m ⇒ m (Mor ((ℝ 1, ℝp 1), Pt) (ℝ 1))
+                    loss  ∷ ∀ m. SampleM m ⇒ m (Mor ((ℝ 1, ℝp 1), ()) (ℝ 1))
                     loss  = divergenceSample variationalFamily posterior
                     variationalFamily ∷ Couple Density Sampler (ℝ 1, ℝp 1) (ℝ 1)
                     variationalFamily = gaussian 
-                    posterior ∷ Density Pt (ℝ 1)
+                    posterior ∷ Density () (ℝ 1)
                     posterior = let Couple μ _ = variationalFamily 
                                  in pull (real 3.14 × realp 2.72) μ 
 
-data BayesSetup lat obs hyp fam = BayesSetup { bayesPrior ∷ Density Pt hyp
+data BayesSetup lat obs hyp fam = BayesSetup { bayesPrior ∷ Density () hyp
                                              , bayesModel ∷ Density hyp (lat, obs)
-                                             , bayesObs   ∷ Mor Pt obs
+                                             , bayesObs   ∷ Mor () obs
                                              , bayesFam   ∷ Couple Density Sampler fam (hyp, lat)
                                              }
 
@@ -202,9 +202,9 @@ data BayesSetup lat obs hyp fam = BayesSetup { bayesPrior ∷ Density Pt hyp
 -- is a product of hypothesis space, latent space and observed space
 bayesLoss ∷ ∀ hyp lat obs fam. (Domain hyp, Domain lat, Domain obs, Domain fam)
             ⇒ BayesSetup lat obs hyp fam → Loss' fam
-bayesLoss BayesSetup{..} = let joint ∷ Density Pt (obs, (hyp, lat)) 
+bayesLoss BayesSetup{..} = let joint ∷ Density () (obs, (hyp, lat)) 
                                joint = pushS @Domain @Mor $ pushAL @Domain @Mor $ mix' @Domain @Mor bayesPrior bayesModel
-                               post  ∷ Density Pt (hyp, lat)
+                               post  ∷ Density () (hyp, lat)
                                post  = pull (id × bayesObs) $ pseudoConditional joint   
                                loss  ∷ Loss' fam 
                                loss  = (. osi) <$> divergenceSample bayesFam post
