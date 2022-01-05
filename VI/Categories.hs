@@ -11,7 +11,7 @@ module VI.Categories ( -- * Categories
 -- and a predicate @ob ∷ k → 'Constraint'@ selecting the actual objects.
 -- An empty constraint is provided by 'Unconstrained', so that we have
 -- e.g. @'Cat' 'Unconstrained' (->)@.
-                       Cat(..), Unconstrained, Terminal(..)
+                       Cat(..), Gpd(..), Unconstrained, Terminal(..)
 -- * Cartesian categories
 -- |
 -- For simplicity, we only model Cartesian structure in two situations:
@@ -47,9 +47,8 @@ module VI.Categories ( -- * Categories
 -- We express canonical isomorphisms in any Cartesian category in terms of the data type
 -- 'Braid'. One may think of @'Braid' ob@ as modeling the internal language of the free Cartesian category
 -- with objects determined by the predicate @ob ∷ Type → Constraint@. The terms of @'Braid' ob@ can be interpreted
--- in any category @c@ satisfying @'Cart' ob c@ using 'braid'. Note that @'Braid' ob@ forms a category with objects
--- constrained by @ob@, and in fact a groupoid (modeled by the class 'Gpd' extending 'Cat').
-                     , Braid(..), braid, Gpd(..)
+-- in any category @c@ satisfying @'Cart' ob c@ using 'braid'.
+                     , Braid(..), braid
                        -- * Auxiliary
                      , intVal
                      ) where
@@ -81,6 +80,10 @@ class Cat (ob ∷ k → Constraint) (c ∷ k → k → Type) | c → ob where
     (.) ∷ c y z → c x y → c x z
     -- | Use a morphism @x → y@ in @c@ as a witness of @(ob x, ob y)@
     witness ∷ c x y → ((ob x, ob y) ⇒ a) → a
+
+-- | Groupoid
+class Cat ob c ⇒ Gpd ob c where
+    inv ∷ c x y → c y x
 
 instance Cat Unconstrained (->) where
     id = F.id
@@ -227,10 +230,6 @@ data Braid ob x y where
     TermR' ∷ ob x ⇒ Braid ob x (x, ())
     BraidL ∷ ob x ⇒ Braid ob y z → Braid ob (y,x) (z,x) 
     BraidR ∷ ob x ⇒ Braid ob y z → Braid ob (x,y) (x,z) 
-
--- | Groupoid
-class Cat ob c ⇒ Gpd ob c where
-    inv ∷ c x y → c y x
 
 instance (ob (), ∀ x y. (ob x, ob y) ⇒ ob (x, y)) ⇒ Cat ob (Braid ob) where
     id = BI

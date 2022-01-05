@@ -203,7 +203,7 @@ data BayesSetup lat obs hyp fam = BayesSetup { bayesPrior ∷ Density () hyp
 bayesLoss ∷ ∀ hyp lat obs fam. (Domain hyp, Domain lat, Domain obs, Domain fam)
             ⇒ BayesSetup lat obs hyp fam → Loss' fam
 bayesLoss BayesSetup{..} = let joint ∷ Density () (obs, (hyp, lat)) 
-                               joint = pushS @Domain @Mor $ pushAL @Domain @Mor $ mix' @Domain @Mor bayesPrior bayesModel
+                               joint = pushB @Domain @Mor (Swap . AssocL) $ mix' @Domain @Mor bayesPrior bayesModel
                                post  ∷ Density () (hyp, lat)
                                post  = pull (id × bayesObs) $ pseudoConditional joint   
                                loss  ∷ Loss' fam 
