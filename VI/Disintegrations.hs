@@ -77,8 +77,9 @@ module VI.Disintegrations ( -- * Disintegrations
 -- This allows us for example to define the faimly of multivariate normal distributions in terms
 -- of a standard one, transformed by an affine map with upper-triangular linear part.
 --
--- We also use 'Reparameterisable' to implement some tautological isomorphisms, see 'pushCanonical'
--- along with its constraint  'CanonicalReparam'.
+-- We also use 'Reparameterisable' to implement some tautological isomorphisms: domains @x@, @y@
+-- satisfying @x ≌ y@ are canonically isomorphic via identity on underlying Euclidean spaces, and
+-- distributions can be pushed from @x@ to @y@ using 'pushCanonical'.
                           , Reparam(..), pullReparam, Reparameterisable(..)
                           , type(≌)(..), pushCanonical
                             -- ** Gaussians 
@@ -231,9 +232,9 @@ pullReparam ∷ Mor t x → Reparam x y z → Reparam t y z
 pullReparam φ (Reparam f g jac) = witness φ $ Reparam (f . bimap φ id) (g . bimap φ id) (jac . bimap φ id)
 
 -- | A relation for tautologically isomorphic domains (i.e. via identity on underlying Euclidean spaces)
-class (Domain x, Domain y, Dim x ~ Dim y) ⇒ x ≌ y where
-    canonicalReparam ∷ ∀ t. Domain t ⇒ Reparam t x y
-    canonicalReparam = pullReparam terminal $ Reparam @() (Mor id) (Mor id) (realp 1)
+class x ≃ y ⇒ x ≌ y where
+    canonicalIso ∷ ∀ t. Domain t ⇒ Reparam t x y
+    canonicalIso = pullReparam terminal $ Reparam @() (Mor id) (Mor id) (realp 1)
 
 instance (KnownNat n, KnownNat m, KnownNat l, l ~ n + m) ⇒ (ℝ n, ℝ m)   ≌ ℝ  l
 instance (KnownNat n, KnownNat m, KnownNat l, l ~ n + m) ⇒ (ℝp n, ℝp m) ≌ ℝp l
@@ -259,7 +260,7 @@ instance (Reparameterisable p, Reparameterisable q) ⇒ Reparameterisable (Coupl
     reparam φ (Couple p q) = Couple (reparam φ p) (reparam φ q)
 
 pushCanonical ∷ (Domain t, x ≌ y, Reparameterisable p) ⇒ p t x → p t y
-pushCanonical = reparam canonicalReparam
+pushCanonical = reparam canonicalIso
 
 translationReparam ∷ KnownNat n ⇒ Reparam (ℝ n) (ℝ n) (ℝ n)
 translationReparam = Reparam add (add . bimap neg id) (realp 1)
