@@ -43,7 +43,7 @@ module VI.Domains ( -- * Cartesian category of domains
 -- |
 -- Additional structures on domains are expressed in terms of several type classes:
 --
--- * '≌' and '⊂' define canonical isomorphisms and embeddings;
+-- * '≃' and '⊂' define canonical isomorphisms and embeddings;
 -- * 'Based' defines canonical basepoints;
 -- * 'Add' defines an additive semigroup structure, extended by 'Ab' to an abelian group structure;
 -- * 'Mul' defines a multiplicative semigroup structure, extended by 'AbM' to an abelian group structure;
@@ -53,7 +53,7 @@ module VI.Domains ( -- * Cartesian category of domains
 --
 -- Furthermore, the class 'Dot' is used to introduce a highly overloaded operator '∙' expressing
 -- various multiplicative pairings, including matrix multiplication. It is best used in pointful style (see '◀').
-                  , type(≌)(..)
+                  , type(≃)(..)
                   , type(⊂)(..)
                   , Based(..)
                   , Add(..), Ab(..), Mul(..), AbM(..), ScaleP(..), Scale(..), Lerp(..), Invol(..)
@@ -176,36 +176,36 @@ realp x = Mor $ point $ LA.konst $ log x
  -}
 
 -- | Canonical isomorphism
-class (Domain x, Domain y, Dim x ~ Dim y) ⇒ x ≌ y where
+class (Domain x, Domain y, Dim x ~ Dim y) ⇒ x ≃ y where
     iso ∷ Mor x y
     osi ∷ Mor y x
     iso = Mor id
     osi = Mor id
 
-instance (KnownNat n, KnownNat m, KnownNat l, l ~ n + m) ⇒ (ℝ n, ℝ m)   ≌ ℝ  l
-instance (KnownNat n, KnownNat m, KnownNat l, l ~ n + m) ⇒ (ℝp n, ℝp m) ≌ ℝp l
-instance (KnownNat n, KnownNat m, KnownNat l, l ~ n + m) ⇒ (I n, I m)   ≌ I  l
+instance (KnownNat n, KnownNat m, KnownNat l, l ~ n + m) ⇒ (ℝ n, ℝ m)   ≃ ℝ  l
+instance (KnownNat n, KnownNat m, KnownNat l, l ~ n + m) ⇒ (ℝp n, ℝp m) ≃ ℝp l
+instance (KnownNat n, KnownNat m, KnownNat l, l ~ n + m) ⇒ (I n, I m)   ≃ I  l
 
-instance Domain x ⇒ ((), x) ≌ x
-instance Domain x ⇒ (x, ()) ≌ x
-instance (Domain x, Domain y, Domain z) ⇒ (x, (y, z)) ≌ ((x, y), z)
+instance Domain x ⇒ ((), x) ≃ x
+instance Domain x ⇒ (x, ()) ≃ x
+instance (Domain x, Domain y, Domain z) ⇒ (x, (y, z)) ≃ ((x, y), z)
 
-instance (Domain x, Domain y) ⇒ (x, y) ≌ (y, x) where
+instance (Domain x, Domain y) ⇒ (x, y) ≃ (y, x) where
     iso = swap
     osi = swap
 
-instance Δ 1 ≌ I 1 where
+instance Δ 1 ≃ I 1 where
     iso = Mor $ linear (LA.konst (sqrt 2) * LA.eye)
     osi = Mor $ linear (LA.konst (recip $ sqrt 2) * LA.eye)
 
 {-
-instance {-# OVERLAPPABLE #-} (x ⊂ y, y ⊂ x, Dim x ~ Dim y) ⇒ x ≌ y where
+instance {-# OVERLAPPABLE #-} (x ⊂ y, y ⊂ x, Dim x ~ Dim y) ⇒ x ≃ y where
     iso = emb
     osi = emb
 -}
 
-instance KnownNat n ⇒ M n 1 ≌ ℝ n
-instance {-# OVERLAPPABLE #-} KnownNat n ⇒ M 1 n ≌ ℝ n
+instance KnownNat n ⇒ M n 1 ≃ ℝ n
+instance {-# OVERLAPPABLE #-} KnownNat n ⇒ M 1 n ≃ ℝ n
 
 {-
  -  Embeddings
