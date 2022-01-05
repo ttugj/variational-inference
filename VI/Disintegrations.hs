@@ -71,7 +71,7 @@ module VI.Disintegrations ( -- * Disintegrations
 -- represented as a pair of mutually inverse morphisms together with a Jacobian. More
 -- precisely, the 'Reparam' type encodes a family of diffeomorphisms between a pair of
 -- domains, parameterised by a third domain. Upon fixing the latter, 'Reparam' becomes
--- a 'Cat'egory.
+-- a 'Cat'egory (and even a groupoid, i.e. 'Gpd').
 --
 -- Both 'Density' and 'Sampler' are 'Reparameterisable'.
 -- This allows us for example to define the faimly of multivariate normal distributions in terms
@@ -79,9 +79,9 @@ module VI.Disintegrations ( -- * Disintegrations
 --
 -- We also use 'Reparameterisable' to implement some tautological isomorphisms: domains @x@, @y@
 -- satisfying @x ≌ y@ are canonically isomorphic via identity on underlying Euclidean spaces, and
--- distributions can be pushed from @x@ to @y@ using 'pushCanonical'.
+-- distributions can be pushed from @x@ to @y@ using 'pushIso'/'pushOsi'.
                           , Reparam(..), pullReparam, Reparameterisable(..)
-                          , type(≌)(..), pushCanonical
+                          , type(≌)(..), pushIso, pushOsi
                             -- ** Gaussians 
 -- |
 -- Gaussian, i.e. multivariate normal, distributions are provided in several flavours:
@@ -227,6 +227,9 @@ instance Domain x ⇒ Cat Domain (Reparam x) where
     (Reparam f g jac) . (Reparam f' g' jac') = Reparam (f . (pr1 × f')) (g' . (pr1 × g)) (jac ◀ mul $ jac' . (pr1 × g))
     witness (Reparam _ _ _) a = a 
 
+instance Domain x ⇒ Gpd Domain (Reparam x) where
+    inv (Reparam f g jac) = Reparam g f (rcp . jac . (pr1 × f))
+
 -- | Base change for a family of reparameterisations
 pullReparam ∷ Mor t x → Reparam x y z → Reparam t y z
 pullReparam φ (Reparam f g jac) = witness φ $ Reparam (f . bimap φ id) (g . bimap φ id) (jac . bimap φ id)
@@ -259,8 +262,10 @@ instance Reparameterisable Trivial where
 instance (Reparameterisable p, Reparameterisable q) ⇒ Reparameterisable (Couple p q) where
     reparam φ (Couple p q) = Couple (reparam φ p) (reparam φ q)
 
-pushCanonical ∷ (Domain t, x ≌ y, Reparameterisable p) ⇒ p t x → p t y
-pushCanonical = reparam canonicalIso
+pushIso ∷ (Domain t, x ≌ y, Reparameterisable p) ⇒ p t x → p t y
+pushIso = reparam canonicalIso
+pushOsi ∷ (Domain t, x ≌ y, Reparameterisable p) ⇒ p t y → p t x
+pushOsi = reparam (inv canonicalIso)
 
 translationReparam ∷ KnownNat n ⇒ Reparam (ℝ n) (ℝ n) (ℝ n)
 translationReparam = Reparam add (add . bimap neg id) (realp 1)
