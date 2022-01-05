@@ -1,5 +1,10 @@
 {-# LANGUAGE UnicodeSyntax, PolyKinds, DataKinds, TypeFamilies, TypeOperators, GADTs, ConstraintKinds, TypeApplications, AllowAmbiguousTypes, NoImplicitPrelude, UndecidableInstances, NoStarIsType, MultiParamTypeClasses, FlexibleInstances, FlexibleContexts, LiberalTypeSynonyms, ScopedTypeVariables, InstanceSigs, DefaultSignatures, RankNTypes, TupleSections, BangPatterns, RecordWildCards #-}
 
+{-# OPTIONS_GHC -fplugin GHC.TypeLits.Extra.Solver #-}
+{-# OPTIONS_GHC -fplugin GHC.TypeLits.KnownNat.Solver #-}
+{-# OPTIONS_GHC -fplugin GHC.TypeLits.Normalise #-}
+{-# OPTIONS_GHC -fconstraint-solver-iterations=10 #-}
+
 module VI.Inference ( -- * SGD on divergence
                       -- ** Optimiser abstractions
                       Loss, Optimiser, Loss', Optimiser', OptimiserState(..)
@@ -8,7 +13,7 @@ module VI.Inference ( -- * SGD on divergence
                     , plainSGD
                     , AdamState, AdamParams(..), defaultAdamParams, adamSGD
                       -- ** Debugging
-                    , monitor, demo
+                    , demo
                     ) where
 
 import VI.Categories
@@ -53,25 +58,6 @@ chunked steps opt loss s0 p0
             go !s !p !adam k = do
                                 (s',p',g) ← opt loss s p
                                 go s' p' (adam+g) (k-1)
-
--- | Run chunked steps of an optimiser, displaying loss and location.
-monitor ∷ ∀ s x. OptimiserState s x
-        ⇒ Optimiser' s x      -- ^ optimiser
-        → Loss' x             -- ^ loss
-        → Maybe (Mor Pt x)    -- ^ initial point
-        → Int                 -- ^ chunk size
-        → IO ()                             
-monitor opt loss init chunk 
-        = executeSampleIO $ go s0 p0 0 where
-            s0 = initState @s @x
-            p0 = case init of
-                   Just (Mor (J φ)) → pr1 (φ 0)
-                   Nothing → 0
-            go ∷ ∀ m. (SampleM m, MonadIO m) ⇒ s → LA.R (Dim x) → Int → m ()
-            go s p i = do
-                           (s', p', g) ← chunked chunk opt loss s p
-                           liftIO . putStrLn . L.unwords $ [ "epoch", show i, "loss", show g, "point", show p' ]
-                           go s' p' (i+1)
 
 -- | Optimisation plan
 data Plan = Plan { planThreshold ∷ Double    -- ^ loss threshold
@@ -194,7 +180,7 @@ adamSGD  params@AdamParams{..} loss state p
            in go <$> loss
 
 demo ∷ IO ()
-demo = putStrLn "* target: 3.14, 2.72" >> optimiseIO cb defaultPlan (adamSGD defaultAdamParams) loss Nothing >>= uncurry cb 
+demo = optimiseIO cb defaultPlan (adamSGD defaultAdamParams) loss Nothing >>= uncurry cb 
             where
                     cb ∷ ∀ m x n. (MonadIO m, Concrete n x) ⇒ Mor Pt x → Double → m ()
                     cb p g = liftIO . putStrLn $ L.unwords [ "loss", show g, "point", show $ getPoint p ] 
@@ -205,4 +191,22 @@ demo = putStrLn "* target: 3.14, 2.72" >> optimiseIO cb defaultPlan (adamSGD def
                     posterior ∷ Density Pt (ℝ 1)
                     posterior = let Couple μ _ = variationalFamily 
                                  in pull (real 3.14 × realp 2.72) μ 
+
+data BayesSetup lat obs hyp fam = BayesSetup { bayesPrior ∷ Density Pt hyp
+                                             , bayesModel ∷ Density hyp (lat, obs)
+                                             , bayesObs   ∷ Mor Pt obs
+                                             , bayesFam   ∷ Couple Density Sampler fam (hyp, lat)
+                                             }
+
+-- | Generic Bayesian loss for a model whose joint domain
+-- is a product of hypothesis space, latent space and observed space
+bayesLoss ∷ ∀ hyp lat obs fam. (Domain hyp, Domain lat, Domain obs, Domain fam)
+            ⇒ BayesSetup lat obs hyp fam → Loss' fam
+bayesLoss BayesSetup{..} = let joint ∷ Density Pt (obs, (hyp, lat)) 
+                               joint = pushS @Domain @Mor $ pushAL @Domain @Mor $ mix' @Domain @Mor bayesPrior bayesModel
+                               post  ∷ Density Pt (hyp, lat)
+                               post  = pull (id × bayesObs) $ pseudoConditional joint   
+                               loss  ∷ Loss' fam 
+                               loss  = (. osi) <$> divergenceSample bayesFam post
+                            in loss 
 
