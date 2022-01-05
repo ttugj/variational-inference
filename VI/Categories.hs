@@ -41,6 +41,15 @@ module VI.Categories ( -- * Categories
 -- finite sets, and the opposite category of this skeleton is modeled by 'Fin''.
 -- The main example for our purposes is 'VI.Jets.J'.
                      , Fin'(..), mkFin', Law(..), expand
+                       -- * Braids
+
+-- |
+-- We express canonical isomorphisms in any Cartesian category in terms of the data type
+-- 'Braid'. One may think of @'Braid' ob@ as modeling the internal language of the free Cartesian category
+-- with objects determined by the predicate @ob ∷ Type → Constraint@. The terms of @'Braid' ob@ can be interpreted
+-- in any category @c@ satisfying @'Cart' ob c@ using 'braid'. Note that @'Braid' ob@ forms a category with objects
+-- constrained by @ob@, and in fact a groupoid (modeled by the class 'Gpd' extending 'Cat').
+                     , Braid(..), braid, Gpd(..)
                        -- * Auxiliary
                      , intVal
                      ) where
@@ -204,4 +213,59 @@ class Cart' c ⇒ Law c where
 -- | the @n@-diagonal, using 'law'
 expand ∷ ∀ n c. (KnownNat n, Law c) ⇒ c 1 n
 expand = let n = intVal @n in law $ Fin' $ V.replicate n 0
+
+-- | A redundant encoding of canonical isomorphisms induced by a 'Cart'esian structure over 'Type'
+data Braid ob x y where
+    BI ∷ ob x ⇒ Braid ob x x
+    BC ∷ Braid ob y z → Braid ob x y → Braid ob x z
+    Swap ∷ (ob x, ob y, ob (x, y), ob (y, x)) ⇒ Braid ob (x, y) (y, x)
+    AssocL ∷ (ob x, ob y, ob z, ob (y, z), ob (x, y), ob (x, (y, z)), ob ((x, y), z)) ⇒ Braid ob (x, (y, z)) ((x, y), z)
+    AssocR ∷ (ob x, ob y, ob z, ob (x, y), ob (y, z), ob ((x, y), z), ob (x, (y, z))) ⇒ Braid ob ((x, y), z) (x, (y, z))
+    TermL  ∷ (ob x, ob ((), x)) ⇒ Braid ob ((), x) x
+    TermL' ∷ (ob x, ob ((), x)) ⇒ Braid ob x ((), x)
+    TermR  ∷ (ob x, ob (x, ())) ⇒ Braid ob (x, ()) x
+    TermR' ∷ (ob x, ob (x, ())) ⇒ Braid ob x (x, ())
+    BraidL ∷ (ob x, ob y, ob z, ob (y, x), ob (z, x)) ⇒ Braid ob y z → Braid ob (y,x) (z,x) 
+    BraidR ∷ (ob x, ob y, ob z, ob (x, y), ob (x, z)) ⇒ Braid ob y z → Braid ob (x,y) (x,z) 
+
+-- | Groupoid
+class Cat ob c ⇒ Gpd ob c where
+    inv ∷ c x y → c y x
+
+instance Cat ob (Braid ob) where
+    id = BI
+    (.) = BC
+    witness BI a = a
+    witness (BC φ ψ) a = witness φ $ witness ψ a
+    witness Swap a = a
+    witness AssocL a = a
+    witness AssocR a = a
+    witness TermL a = a
+    witness TermL' a = a
+    witness TermR a = a
+    witness TermR' a = a
+    witness (BraidL φ) a = witness φ a
+    witness (BraidR φ) a = witness φ a
+
+instance Gpd ob (Braid ob) where
+    inv BI = BI
+    inv (BC φ ψ) = BC (inv ψ) (inv φ)
+    inv Swap = Swap
+    inv AssocL = AssocR
+    inv AssocR = AssocL
+    inv TermL = TermL'
+    inv TermL' = TermL
+    inv TermR = TermR'
+    inv TermR' = TermR
+    inv (BraidL φ) = BraidL (inv φ)
+    inv (BraidR φ) = BraidR (inv φ)
+
+braid ∷ Cart ob c ⇒ Braid ob x y → c x y
+braid BI = id
+braid (BC φ ψ) = braid φ . braid ψ
+braid Swap = swap
+braid AssocL = assocL
+braid AssocR = assocR
+braid (BraidL φ) = bimap (braid φ) id
+braid (BraidR φ) = bimap id (braid φ) 
 
