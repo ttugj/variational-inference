@@ -76,7 +76,11 @@ module VI.Disintegrations ( -- * Disintegrations
 -- Both 'Density' and 'Sampler' are 'Reparameterisable'.
 -- This allows us for example to define the faimly of multivariate normal distributions in terms
 -- of a standard one, transformed by an affine map with upper-triangular linear part.
+--
+-- We also use 'Reparameterisable' to implement some tautological isomorphisms, see 'pushCanonical'
+-- along with its constraint  'CanonicalReparam'.
                           , Reparam(..), pullReparam, Reparameterisable(..)
+                          , CanonicalReparam(..), pushCanonical
                             -- ** Gaussians 
 -- |
 -- Gaussian, i.e. multivariate normal, distributions are provided in several flavours:
@@ -226,6 +230,18 @@ instance Domain x ⇒ Cat Domain (Reparam x) where
 pullReparam ∷ Mor t x → Reparam x y z → Reparam t y z
 pullReparam φ (Reparam f g jac) = witness φ $ Reparam (f . bimap φ id) (g . bimap φ id) (jac . bimap φ id)
 
+class (Domain x, Domain y, Dim x ~ Dim y) ⇒ CanonicalReparam x y where
+    canonicalReparam ∷ ∀ t. Domain t ⇒ Reparam t x y
+    canonicalReparam = pullReparam terminal $ Reparam @() (Mor id) (Mor id) (realp 1)
+
+instance (KnownNat n, KnownNat m, KnownNat l, l ~ n + m) ⇒ CanonicalReparam (ℝ n, ℝ m)   (ℝ  l)
+instance (KnownNat n, KnownNat m, KnownNat l, l ~ n + m) ⇒ CanonicalReparam (ℝp n, ℝp m) (ℝp l)
+instance (KnownNat n, KnownNat m, KnownNat l, l ~ n + m) ⇒ CanonicalReparam (I n, I m)   (I  l)
+
+instance Domain x ⇒ CanonicalReparam ((), x) x
+instance Domain x ⇒ CanonicalReparam (x, ()) x
+instance (Domain x, Domain y, Domain z) ⇒ CanonicalReparam (x, (y, z)) ((x, y), z)
+
 class Disintegration Domain Mor p ⇒ Reparameterisable p where
     reparam ∷ Reparam x y z → p x y → p x z
 
@@ -240,6 +256,9 @@ instance Reparameterisable Trivial where
 
 instance (Reparameterisable p, Reparameterisable q) ⇒ Reparameterisable (Couple p q) where
     reparam φ (Couple p q) = Couple (reparam φ p) (reparam φ q)
+
+pushCanonical ∷ (Domain t, CanonicalReparam x y, Reparameterisable p) ⇒ p t x → p t y
+pushCanonical = reparam canonicalReparam
 
 translationReparam ∷ KnownNat n ⇒ Reparam (ℝ n) (ℝ n) (ℝ n)
 translationReparam = Reparam add (add . bimap neg id) (realp 1)

@@ -198,9 +198,11 @@ instance Δ 1 ≌ I 1 where
     iso = Mor $ linear (LA.konst (sqrt 2) * LA.eye)
     osi = Mor $ linear (LA.konst (recip $ sqrt 2) * LA.eye)
 
+{-
 instance {-# OVERLAPPABLE #-} (x ⊂ y, y ⊂ x, Dim x ~ Dim y) ⇒ x ≌ y where
     iso = emb
     osi = emb
+-}
 
 instance KnownNat n ⇒ M n 1 ≌ ℝ n
 instance {-# OVERLAPPABLE #-} KnownNat n ⇒ M 1 n ≌ ℝ n

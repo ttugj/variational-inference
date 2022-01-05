@@ -182,15 +182,19 @@ adamSGD  params@AdamParams{..} loss state p
 demo ∷ IO ()
 demo = optimiseIO cb defaultPlan (adamSGD defaultAdamParams) loss Nothing >>= uncurry cb 
             where
-                    cb ∷ ∀ m x n. (MonadIO m, Concrete n x) ⇒ Mor () x → Double → m ()
-                    cb p g = liftIO . putStrLn $ L.unwords [ "loss", show g, "point", show $ getPoint p ] 
-                    loss  ∷ ∀ m. SampleM m ⇒ m (Mor ((ℝ 1, ℝp 1), ()) (ℝ 1))
+              --    cb ∷ ∀ m x n. (MonadIO m, Concrete n x) ⇒ Mor () x → Double → m ()
+              --    cb p g = liftIO . putStrLn $ L.unwords [ "loss", show g, "point", show $ getPoint p ] 
+                    cb ∷ ∀ m x. (x ~ ((ℝ 2, Σp 2), ()), MonadIO m) ⇒ Mor () x → Double → m ()
+                    cb p g = liftIO . putStrLn $ L.unwords [ "loss", show g, "loc", show $ getPoint (pr1 . pr1 . p) ] 
+                    loss  ∷ ∀ m. SampleM m ⇒ m (Mor ((ℝ 2, Σp 2), ()) (ℝ 1))
                     loss  = divergenceSample variationalFamily posterior
-                    variationalFamily ∷ Couple Density Sampler (ℝ 1, ℝp 1) (ℝ 1)
-                    variationalFamily = gaussian 
-                    posterior ∷ Density () (ℝ 1)
-                    posterior = let Couple μ _ = variationalFamily 
-                                 in pull (real 3.14 × realp 2.72) μ 
+                    variationalFamily ∷ Couple Density Sampler (ℝ 2, Σp 2) (ℝ 1, ℝ 1)
+                    variationalFamily = pull (bimap osi id) $ genericGaussian  @(ℝ 1, ℝ 1) @2 @(Σp 2)
+                    posterior ∷ Density () (ℝ 1, ℝ 1)
+                    posterior = let Couple μ _ = gaussian @1 @(ℝp 1)
+                                    λ = pull (real 1.0 × realp 1.0) μ
+                                    in mix' @Domain @Mor λ $ pull (id × realp 1.0) μ 
+                                
 
 data BayesSetup lat obs hyp fam = BayesSetup { bayesPrior ∷ Density () hyp
                                              , bayesModel ∷ Density hyp (lat, obs)
