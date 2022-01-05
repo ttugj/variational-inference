@@ -1,4 +1,4 @@
-{-# LANGUAGE UnicodeSyntax, PolyKinds, DataKinds, TypeFamilies, TypeOperators, GADTs, ConstraintKinds, TypeApplications, AllowAmbiguousTypes, NoImplicitPrelude, UndecidableInstances, NoStarIsType, MultiParamTypeClasses, FlexibleInstances, FlexibleContexts, StandaloneKindSignatures, LiberalTypeSynonyms, FunctionalDependencies, RankNTypes, ScopedTypeVariables, InstanceSigs #-}
+{-# LANGUAGE UnicodeSyntax, PolyKinds, DataKinds, TypeFamilies, TypeOperators, GADTs, ConstraintKinds, TypeApplications, AllowAmbiguousTypes, NoImplicitPrelude, UndecidableInstances, NoStarIsType, MultiParamTypeClasses, FlexibleInstances, FlexibleContexts, StandaloneKindSignatures, LiberalTypeSynonyms, FunctionalDependencies, RankNTypes, ScopedTypeVariables, InstanceSigs, QuantifiedConstraints #-}
 
 {-# OPTIONS_GHC -fplugin GHC.TypeLits.Extra.Solver #-}
 {-# OPTIONS_GHC -fplugin GHC.TypeLits.KnownNat.Solver #-}
@@ -93,8 +93,8 @@ class Cat ob c ⇒ Terminal ob c x where
 instance Terminal Unconstrained (->) () where
     terminal _ = ()
 
--- | Cartesian structure (over 'Type', with its free product)
-class (Cat (ob ∷ Type → Constraint) c, Terminal ob c ()) ⇒ Cart ob c where
+-- | Cartesian structure over 'Type', with its free product.
+class (Cat (ob ∷ Type → Constraint) c, Terminal ob c (), ∀ x y. (ob x, ob y) ⇒ ob (x, y)) ⇒ Cart ob c where
     pr1 ∷ (ob x, ob y) ⇒ c (x,y) x
     pr2 ∷ (ob x, ob y) ⇒ c (x,y) y
     (×) ∷ c x y → c x y' → c x (y,y')                 -- digraph: ^K \/
@@ -104,10 +104,10 @@ instance Cart Unconstrained (->) where
     pr2 = T.snd
     f × g = (,) <$> f <*> g
 
-assocR ∷ (Cart ob c, ob x, ob y, ob z, ob (x,y), ob (y,z)) ⇒ c ((x,y),z) (x,(y,z))
+assocR ∷ (Cart ob c, ob x, ob y, ob z) ⇒ c ((x,y),z) (x,(y,z))
 assocR = (pr1 . pr1) × ((pr2 . pr1) × pr2)
 
-assocL ∷ (Cart ob c, ob x, ob y, ob z, ob (x,y), ob (y,z)) ⇒ c (x,(y,z)) ((x,y),z)
+assocL ∷ (Cart ob c, ob x, ob y, ob z) ⇒ c (x,(y,z)) ((x,y),z)
 assocL = pr1 × (pr1 . pr2) × (pr2 . pr2)
 
 swap  ∷ (Cart ob c, ob x, ob y) ⇒ c (x,y) (y,x)
@@ -218,21 +218,21 @@ expand = let n = intVal @n in law $ Fin' $ V.replicate n 0
 data Braid ob x y where
     BI ∷ ob x ⇒ Braid ob x x
     BC ∷ Braid ob y z → Braid ob x y → Braid ob x z
-    Swap ∷ (ob x, ob y, ob (x, y), ob (y, x)) ⇒ Braid ob (x, y) (y, x)
-    AssocL ∷ (ob x, ob y, ob z, ob (y, z), ob (x, y), ob (x, (y, z)), ob ((x, y), z)) ⇒ Braid ob (x, (y, z)) ((x, y), z)
-    AssocR ∷ (ob x, ob y, ob z, ob (x, y), ob (y, z), ob ((x, y), z), ob (x, (y, z))) ⇒ Braid ob ((x, y), z) (x, (y, z))
-    TermL  ∷ (ob x, ob ((), x)) ⇒ Braid ob ((), x) x
-    TermL' ∷ (ob x, ob ((), x)) ⇒ Braid ob x ((), x)
-    TermR  ∷ (ob x, ob (x, ())) ⇒ Braid ob (x, ()) x
-    TermR' ∷ (ob x, ob (x, ())) ⇒ Braid ob x (x, ())
-    BraidL ∷ (ob x, ob y, ob z, ob (y, x), ob (z, x)) ⇒ Braid ob y z → Braid ob (y,x) (z,x) 
-    BraidR ∷ (ob x, ob y, ob z, ob (x, y), ob (x, z)) ⇒ Braid ob y z → Braid ob (x,y) (x,z) 
+    Swap ∷ (ob x, ob y) ⇒ Braid ob (x, y) (y, x)
+    AssocL ∷ (ob x, ob y, ob z) ⇒ Braid ob (x, (y, z)) ((x, y), z)
+    AssocR ∷ (ob x, ob y, ob z) ⇒ Braid ob ((x, y), z) (x, (y, z))
+    TermL  ∷ ob x ⇒ Braid ob ((), x) x
+    TermL' ∷ ob x ⇒ Braid ob x ((), x)
+    TermR  ∷ ob x ⇒ Braid ob (x, ()) x
+    TermR' ∷ ob x ⇒ Braid ob x (x, ())
+    BraidL ∷ ob x ⇒ Braid ob y z → Braid ob (y,x) (z,x) 
+    BraidR ∷ ob x ⇒ Braid ob y z → Braid ob (x,y) (x,z) 
 
 -- | Groupoid
 class Cat ob c ⇒ Gpd ob c where
     inv ∷ c x y → c y x
 
-instance Cat ob (Braid ob) where
+instance (ob (), ∀ x y. (ob x, ob y) ⇒ ob (x, y)) ⇒ Cat ob (Braid ob) where
     id = BI
     (.) = BC
     witness BI a = a
@@ -247,7 +247,7 @@ instance Cat ob (Braid ob) where
     witness (BraidL φ) a = witness φ a
     witness (BraidR φ) a = witness φ a
 
-instance Gpd ob (Braid ob) where
+instance (ob (), ∀ x y. (ob x, ob y) ⇒ ob (x, y)) ⇒ Gpd ob (Braid ob) where
     inv BI = BI
     inv (BC φ ψ) = BC (inv ψ) (inv φ)
     inv Swap = Swap
