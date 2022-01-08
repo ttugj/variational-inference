@@ -72,12 +72,12 @@ defaultPlan = Plan 1.0e-4 100000 1000
 -- loss falls below threshold or max number of steps
 -- exceeded. 
 optimise ∷ ∀ m s x. (SampleM m, OptimiserState s x)
-         ⇒ (Mor () x → Double → m ())   -- ^ callback
+         ⇒ (Point x → Double → m ())   -- ^ callback
          → Plan                         -- ^ optimisation plan
          → Optimiser' s x               -- ^ optimiser
          → Loss' x                      -- ^ loss
-         → Maybe (Mor () x)             -- ^ initial point
-         → m (Mor () x, Double)
+         → Maybe (Point x)             -- ^ initial point
+         → m (Point x, Double)
 optimise cb Plan{..} opt loss init
          = go s0 p0 0 where 
                     s0 = initState @s @x
@@ -96,21 +96,21 @@ optimise' ∷ (SampleM m, OptimiserState s x)
           ⇒ Plan                         -- ^ optimisation plan
           → Optimiser' s x               -- ^ optimiser
           → Loss' x                      -- ^ loss
-          → Maybe (Mor () x)             -- ^ initial point
-          → m (Mor () x, Double)
+          → Maybe (Point x)             -- ^ initial point
+          → m (Point x, Double)
 optimise' = optimise $ \_ _ → return ()
 
 -- | 'optimise' in 'IO'
 optimiseIO ∷ ∀ s x. OptimiserState s x
-           ⇒ (∀ m. MonadIO m ⇒ Mor () x → Double → m ())  -- ^ callback
+           ⇒ (∀ m. MonadIO m ⇒ Point x → Double → m ())  -- ^ callback
            → Plan                                         -- ^ optimisation plan
            → Optimiser' s x                               -- ^ optimiser
            → Loss' x                                      -- ^ loss
-           → Maybe (Mor () x)                             -- ^ initial point
-           → IO (Mor () x, Double)
+           → Maybe (Point x)                             -- ^ initial point
+           → IO (Point x, Double)
 optimiseIO cb plan opt loss init 
            = executeSampleIO α where
-                α ∷ ∀ m. (SampleM m, MonadIO m) ⇒ m (Mor () x, Double)
+                α ∷ ∀ m. (SampleM m, MonadIO m) ⇒ m (Point x, Double)
                 α = optimise cb plan opt loss init
 
 -- | 'optimiseIO' without callback
@@ -118,8 +118,8 @@ optimiseIO' ∷ ∀ s x. OptimiserState s x
             ⇒ Plan                                         -- ^ optimisation plan
             → Optimiser' s x                               -- ^ optimiser
             → Loss' x                                      -- ^ loss
-            → Maybe (Mor () x)                             -- ^ initial point
-            → IO (Mor () x, Double)
+            → Maybe (Point x)                             -- ^ initial point
+            → IO (Point x, Double)
 optimiseIO' = optimiseIO $ \_ _ → return () 
 
 -- | Plain constant-rate SGD optimiser
@@ -182,7 +182,7 @@ adamSGD  params@AdamParams{..} loss state p
 demo ∷ IO ()
 demo = optimiseIO cb defaultPlan (adamSGD defaultAdamParams) loss Nothing >>= uncurry cb 
             where
-                    cb ∷ ∀ m x. (x ~ (ℝ 2, Σp 2), MonadIO m) ⇒ Mor () x → Double → m ()
+                    cb ∷ ∀ m x. (x ~ (ℝ 2, Σp 2), MonadIO m) ⇒ Point x → Double → m ()
                     cb p g = liftIO . putStrLn $ L.unwords [ "loss", show g, "loc", show $ getPoint (pr1 . p) ] 
                     loss  ∷ ∀ m. SampleM m ⇒ m (Mor (ℝ 2, Σp 2) (ℝ 1))
                     loss  = (. osi) <$> divergenceSample variationalFamily posterior
@@ -197,7 +197,7 @@ demo = optimiseIO cb defaultPlan (adamSGD defaultAdamParams) loss Nothing >>= un
 
 data BayesSetup lat obs hyp fam = BayesSetup { bayesPrior ∷ Density () hyp
                                              , bayesModel ∷ Density hyp (lat, obs)
-                                             , bayesObs   ∷ Mor () obs
+                                             , bayesObs   ∷ Point obs
                                              , bayesFam   ∷ Couple Density Sampler fam (hyp, lat)
                                              }
 

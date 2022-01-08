@@ -18,7 +18,7 @@ module VI.Domains ( -- * Cartesian category of domains
 -- Their purpose
 -- is to serve as parameter domains as well as target spaces for families 
 -- of probability distributions.
-                    Dim, Domain, Mor(..)
+                    Dim, Domain, Mor(..), Point
                     -- * Basic domains
 -- |
 -- We present basic domains as open subsets
@@ -140,13 +140,16 @@ type instance Dim (Lo n  ) = n + ((n * (n - 1)) `Div` 2)
 instance Terminal Domain Mor () where
     terminal = Mor terminal 
 
+-- | Point of a domain 
+type Point = Mor ()
+
 {-
  -  Concrete presentation / construction
  -}
 
 class (Domain x, KnownNat n) ⇒ Concrete (n ∷ Nat) x | x → n where
     toConcrete      ∷ Mor x (ℝ n)    
-    fromConcrete    ∷ LA.R n → Mor () x
+    fromConcrete    ∷ LA.R n → Point x
 
 instance Concrete 0 () where
     toConcrete      = Mor id
@@ -160,7 +163,7 @@ instance KnownNat n ⇒ Concrete n (ℝ n) where
     toConcrete      = id
     fromConcrete x  = Mor $ point x
    
-getPoint ∷ ∀ (n ∷ Nat) x. Concrete n x ⇒ Mor () x → LA.R n
+getPoint ∷ ∀ (n ∷ Nat) x. Concrete n x ⇒ Point x → LA.R n
 getPoint p = let Mor (J f) = toConcrete . p
                  (y, _)    = f undefined
               in y
@@ -466,7 +469,7 @@ instance KnownNat n ⇒ Dot (ℝ n) (ℝ n) (ℝ 1) where
 -- | Based domains
 class Domain x ⇒ Based x where
     -- | by default, the basepoint is zero in canonical coordinates
-    basePoint ∷ Mor () x
+    basePoint ∷ Point x
     basePoint = Mor 0
 
 instance KnownNat n ⇒ Based (ℝ  n)

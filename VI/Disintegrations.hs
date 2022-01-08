@@ -285,7 +285,7 @@ standardGaussian = Couple (Density p) (Sampler s) where
                     z = (2*pi) ** (0.5 * (fromIntegral $ natVal (Proxy ∷ Proxy n))) 
                     p = fromPoints2 $ \_ x → let e = exp' ▶ (real (-0.5) ◀ mul $ x ∙ x)
                                               in e ◀ quo $ realp z
-                    s ∷ ∀ m. SampleM m ⇒ m (Mor () (ℝ n))
+                    s ∷ ∀ m. SampleM m ⇒ m (Point (ℝ n))
                     s = do
                            z ← sample $ \g → fromJust @(LA.R n) . LA.create <$> G.replicateM (intVal @n) (MWC.standard g) 
                            return $ Mor $ point z
