@@ -5,7 +5,11 @@
 {-# OPTIONS_GHC -fplugin GHC.TypeLits.Normalise #-}
 {-# OPTIONS_GHC -fconstraint-solver-iterations=10 #-}
 
-module VI.Models (
+module VI.Models ( -- * Models
+        -- 
+        -- | This module will contain a collection of loosely related models,
+        -- mostly to serve as examples.   
+                   linearRegression
                  ) where
 
 import VI.Categories
@@ -19,12 +23,12 @@ import GHC.Classes
 import GHC.Num  
 import Data.Function (($))
 
-import Prelude (undefined)
-
 -- | A simple Bayesian linear regression model.
 --
+-- Specification:
+--
 -- * data: \((x_i, y_i)_{1 \le i \le n}\) with \(x_i \in \mathbb{R}^d\), \(y_i\in\mathbb{R}\)
--- * parameters: \(w \in \mathbb{R}^d\), \(\sigma^{-2}\in\mathbb{R}_{>0}\)
+-- * parameters: \(w \in \mathbb{R}^d\), \(\sigma\in\mathbb{R}_{>0}\)
 -- * model: \( y_i = w^* x_i + \epsilon_i\), with iid \(\epsilon_i \sim \mathcal{N}(w x_i, \sigma^2)\)
 -- * prior: \( w \sim \mathcal{N}(0, c^2 I)\), \( \sigma^{-2} \sim \mathrm{Gamma}(a,b)\)
 linearRegression ∷ ∀ d n hyp fam cov. ( KnownNat d, KnownNat n
@@ -52,6 +56,6 @@ linearRegression hyp dat = let bayesPrior = prior
                                prior = let μ ∷ Density () (ℝ d)
                                            μ = pull (basePoint × (Mor expand . pr2 . hyp)) $ gaussianD @d @(ℝp d)
                                            ν ∷ Density () (ℝp 1)
-                                           ν = pull (pr1 . hyp) gammaD
+                                           ν = pull (pr1 . hyp) $ reparam (inv stdToPrecision) gammaD
                                         in μ ◎ ν   
 

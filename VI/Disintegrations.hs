@@ -312,6 +312,7 @@ gaussian = reparam φ μ where
               φ = pullReparam pr1 translationReparam . pullReparam pr2 covarianceReparam
               μ = pull @Domain @Mor terminal standardGaussian
 
+-- | The 'Density' component of 'gaussian'
 gaussianD ∷ ∀ n cov. GaussianCovariance n cov ⇒ Density (ℝ n, cov) (ℝ n)
 gaussianD = let Couple μ _ = gaussian in μ
 
