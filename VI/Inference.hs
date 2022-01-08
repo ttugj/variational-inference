@@ -182,8 +182,6 @@ adamSGD  params@AdamParams{..} loss state p
 demo ∷ IO ()
 demo = optimiseIO cb defaultPlan (adamSGD defaultAdamParams) loss Nothing >>= uncurry cb 
             where
-              --    cb ∷ ∀ m x n. (MonadIO m, Concrete n x) ⇒ Mor () x → Double → m ()
-              --    cb p g = liftIO . putStrLn $ L.unwords [ "loss", show g, "point", show $ getPoint p ] 
                     cb ∷ ∀ m x. (x ~ (ℝ 2, Σp 2), MonadIO m) ⇒ Mor () x → Double → m ()
                     cb p g = liftIO . putStrLn $ L.unwords [ "loss", show g, "loc", show $ getPoint (pr1 . p) ] 
                     loss  ∷ ∀ m. SampleM m ⇒ m (Mor (ℝ 2, Σp 2) (ℝ 1))
