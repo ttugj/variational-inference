@@ -159,13 +159,13 @@ gradAtPoint φ p = let Mor (J f) = toConcrete @m @y . φ
 evalAtPoint ∷ ∀ (x ∷ Type) (y ∷ Type) (n ∷ Nat) (m ∷ Nat). (Concrete n x, Concrete m y) ⇒ Mor x y → LA.R n → (LA.R m, LA.L m (Dim x))
 evalAtPoint φ p = (valueAtPoint φ p, gradAtPoint φ p)
 
-getMatrix ∷ ∀ m n (x ∷ Type). (KnownNat m, KnownNat n, x ⊂ M m n) ⇒ Mor () x → LA.L m n
+getMatrix ∷ ∀ m n (x ∷ Type). (KnownNat m, KnownNat n, x ⊂ M m n) ⇒ Point x → LA.L m n
 getMatrix p = let Mor (J f) = emb @x @(M m n) . p
                   (y, _)    = f undefined
                   Just z    = LA.create $ LA'.reshape (intVal @n) (LA.extract y)
                in z   
 
-randomPoint ∷ ∀ x. Domain x ⇒ IO (Mor () x)
+randomPoint ∷ ∀ x. Domain x ⇒ IO (Point x)
 randomPoint = do
                 gen ← MWC.createSystemRandom 
                 Just xu ← LA.create <$> G.replicateM (intVal @(Dim x)) (MWC.uniformRM (-2,2) gen)
