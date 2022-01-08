@@ -12,6 +12,9 @@ module VI.Inference ( -- * SGD on divergence
                       -- ** Concrete optimisers
                     , plainSGD
                     , AdamState, AdamParams(..), defaultAdamParams, adamSGD
+                      -- * Inference models
+                      -- ** Bayes
+                    , BayesSetup(..), bayesLoss
                       -- ** Debugging
                     , demo
                     ) where

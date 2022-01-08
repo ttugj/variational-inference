@@ -27,7 +27,7 @@ module VI.Disintegrations ( -- * Disintegrations
 -- into a profunctor) and Dirac delta distributions (these would lift
 -- morphisms into disintegrations). Mixture maps provide just enough structure
 -- to construct joint distributions over probabilistic programs.
-                            Disintegration(..), mix', (◎)
+                            Disintegration(..), mix', mix''
 -- |
 -- One may view disintegrations over a fixed Cartesian category
 -- as objects of a symmetric monoidal category. While we won't 
@@ -63,6 +63,8 @@ module VI.Disintegrations ( -- * Disintegrations
 -- that can interpret computations of the form @∀ g m'. StatefulGen g m' ⇒ g → m' a@ into @m a@.
 -- Sampling computations should be composed in the context @∀ m. 'SampleM' m@, and only finally
 -- executed using 'executeSampleIO' (this creates a random generator in @'IO'@).
+--
+                          , (◎)
                           , Density(..), pseudoConditional
                           , SampleM(..), executeSampleIO, Sampler(..), push 
                             -- ** Reparameterisation of disintegratoins
@@ -96,7 +98,9 @@ module VI.Disintegrations ( -- * Disintegrations
 -- by its diagonal (corresponding to the domain @'Rp' n@). This is enabled by the 'GaussianCovariance' class. More 
 -- concretely, 'gaussian' is defined starting with 'standardGaussian', pushing forward by 'covarianceReparam'
 -- provided by a 'GaussianCovariance' instance (to adjust covariance), and by 'translationReparam' (to adjust mean).
-                          , standardGaussian, translationReparam, GaussianCovariance(..), gaussian, genericGaussian 
+                          , standardGaussian, translationReparam, GaussianCovariance(..), gaussian, genericGaussian, stdToPrecision 
+                            -- ** Common densities
+                          , gaussianD, gammaD
                             -- * Divergence
 -- |
 -- At the core of variational inference is the Kullback-Leibler divergence between a pair of
@@ -170,8 +174,13 @@ instance (Disintegration ob c p, Disintegration ob c p') ⇒ Disintegration ob c
 mix' ∷ ∀ ob c p x y z. (Disintegration ob c p, ob x, ob y, ob z) ⇒ p x y → p y z → p x (y, z)
 mix' μ ν = mix @ob @c μ (pull @ob @c pr2 ν)
 
-(◎) ∷ ∀ ob c p x y z. (Disintegration ob c p, ob x, ob y, ob z) ⇒ p x y → p x z → p x (y, z)
-μ ◎ ν = mix @ob @c μ (pull @ob @c pr1 ν)
+
+mix'' ∷ ∀ ob c p x y z. (Disintegration ob c p, ob x, ob y, ob z) ⇒ p x y → p x z → p x (y, z)
+mix'' μ ν  = mix @ob @c μ (pull @ob @c pr1 ν)
+
+-- | Specialisation of 'mix''' 
+(◎) ∷ ∀ p x y z. (Disintegration Domain Mor p, Domain x, Domain y, Domain z) ⇒ p x y → p x z → p x (y, z)
+(◎) = mix'' @Domain @Mor @p @x @y @z 
 
 -- | A family of probability densities (with respect to Lebesgue measure induced by the canonical coordinate)
 data Density x y where
@@ -280,6 +289,13 @@ instance (KnownNat n, 1 <= n) ⇒ GaussianCovariance n (Σp n) where
 instance KnownNat n ⇒ GaussianCovariance n (ℝp n) where
     covarianceReparam = Reparam (mul . bimap emb id) (mul . bimap (emb . invol) id) (prodP . pr1)
 
+-- | This is useful for converting between stdev and precision
+-- parameterisation (forward takes \(\sigma\) to  \(\sigma^{-2}\)).
+stdToPrecision ∷ ∀ t n. (Domain t, KnownNat n) ⇒ Reparam t (ℝp n) (ℝp n) 
+stdToPrecision = Reparam (Mor (fromPoints $ \s → (-2) * s) . pr2)
+                         (Mor (fromPoints $ \s → (-0.5) * s) . pr2)
+                         (realp 2) 
+
 standardGaussian ∷ ∀ n. KnownNat n ⇒ Couple Density Sampler () (ℝ n)
 standardGaussian = Couple (Density p) (Sampler s) where
                     z = (2*pi) ** (0.5 * (fromIntegral $ natVal (Proxy ∷ Proxy n))) 
@@ -296,6 +312,9 @@ gaussian = reparam φ μ where
               φ = pullReparam pr1 translationReparam . pullReparam pr2 covarianceReparam
               μ = pull @Domain @Mor terminal standardGaussian
 
+gaussianD ∷ ∀ n cov. GaussianCovariance n cov ⇒ Density (ℝ n, cov) (ℝ n)
+gaussianD = let Couple μ _ = gaussian in μ
+
 -- | This is the default variational family, employing a multivariate normal in the canonical coordinates on a domain.
 genericGaussian ∷ ∀ x n cov. (Domain x, n ~ Dim x, GaussianCovariance n cov) ⇒ Couple Density Sampler (x, cov) x
 genericGaussian = case gaussian @n of
@@ -306,7 +325,11 @@ genericGaussian = case gaussian @n of
                     where
                       f = Mor id ∷ Mor x (ℝ n)
                       g = Mor id ∷ Mor (ℝ n) x
-                     
+
+-- | Gamma distribution
+gammaD ∷ ∀ n. KnownNat n ⇒ Density (ℝp n, ℝp n) (ℝp n)
+gammaD = Density $ let x = x in x -- undefined
+
 divergenceSample ∷ SampleM m ⇒ Couple Density Sampler t x → Density s x → m (Mor (t,s) (ℝ 1))
 divergenceSample (Couple (Density q) (Sampler s)) (Density p) = go <$> s where
                                                                      -- q ∷ Mor (t,x) (ℝp 1) 
@@ -317,4 +340,5 @@ divergenceSample (Couple (Density q) (Sampler s)) (Density p) = go <$> s where
                                                                                                      ρ = θ ◀ q $ ξ
                                                                                                      d = ρ ◀ quo $ π
                                                                                                   in log' ▶ d 
+
 
