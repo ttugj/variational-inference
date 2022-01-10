@@ -147,6 +147,7 @@ import GHC.Real
 import GHC.Num   
 import GHC.Classes
 import GHC.Types
+import GHC.Err (undefined)
 
 -- | A minimal structure for building joint likelihoods
 class Cart ob c ⇒ Disintegration ob c p where
@@ -329,7 +330,7 @@ genericGaussian = case gaussian @n of
 
 -- | Gamma distribution
 gammaD ∷ ∀ n. KnownNat n ⇒ Density (ℝp n, ℝp n) (ℝp n)
-gammaD = Density $ let x = x in x -- undefined
+gammaD = Density $ undefined
 
 divergenceSample ∷ SampleM m ⇒ Couple Density Sampler t x → Density s x → m (Mor (t,s) (ℝ 1))
 divergenceSample (Couple (Density q) (Sampler s)) (Density p) = go <$> s where

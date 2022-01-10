@@ -8,7 +8,9 @@
 module VI.Inference ( -- * SGD on divergence
                       -- ** Optimiser abstractions
                       Loss, Optimiser, Loss', Optimiser', OptimiserState(..)
-                    , chunked, Plan(..), optimise, optimise', optimiseIO, optimiseIO'
+                    , chunked
+                    , Plan(..), defaultPlan
+                    , optimise, optimise', optimiseIO, optimiseIO'
                       -- ** Concrete optimisers
                     , plainSGD
                     , AdamState, AdamParams(..), defaultAdamParams, adamSGD
@@ -76,9 +78,9 @@ defaultPlan = Plan 1.0e-4 100000 1000
 -- exceeded. 
 optimise ∷ ∀ m s x. (SampleM m, OptimiserState s x)
          ⇒ (Point x → Double → m ())   -- ^ callback
-         → Plan                         -- ^ optimisation plan
-         → Optimiser' s x               -- ^ optimiser
-         → Loss' x                      -- ^ loss
+         → Plan                        -- ^ optimisation plan
+         → Optimiser' s x              -- ^ optimiser
+         → Loss' x                     -- ^ loss
          → Maybe (Point x)             -- ^ initial point
          → m (Point x, Double)
 optimise cb Plan{..} opt loss init
@@ -118,9 +120,9 @@ optimiseIO cb plan opt loss init
 
 -- | 'optimiseIO' without callback
 optimiseIO' ∷ ∀ s x. OptimiserState s x
-            ⇒ Plan                                         -- ^ optimisation plan
-            → Optimiser' s x                               -- ^ optimiser
-            → Loss' x                                      -- ^ loss
+            ⇒ Plan                                        -- ^ optimisation plan
+            → Optimiser' s x                              -- ^ optimiser
+            → Loss' x                                     -- ^ loss
             → Maybe (Point x)                             -- ^ initial point
             → IO (Point x, Double)
 optimiseIO' = optimiseIO $ \_ _ → return () 

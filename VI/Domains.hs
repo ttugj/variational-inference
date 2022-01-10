@@ -38,7 +38,7 @@ module VI.Domains ( -- * Cartesian category of domains
 -- viewed as a concrete point of the ambient Euclidean space, has coordinates given by 'getPoint'. Two auxiliary functions, 'real' and 'realp',
 -- convert concrete real (resp. positive real) numbers into constant morphisms into @ℝ 1@ (resp. @ℝp 1@).
                   , ℝ, ℝp, I, Δ, M, Σ, Σp, Lo
-                  , Concrete(..), getPoint, real, realp
+                  , Concrete(..), getPoint, real, realp, getMatrix
                     -- * General structures 
 -- |
 -- Additional structures on domains are expressed in terms of several type classes:
@@ -173,6 +173,11 @@ real x = Mor $ point $ LA.konst x
 
 realp ∷ ∀ t. Domain t ⇒ Double → Mor t (ℝp 1) 
 realp x = Mor $ point $ LA.konst $ log x
+
+getMatrix ∷ ∀ n m. (KnownNat n, KnownNat m) ⇒ Point (M n m) → LA.L n m
+getMatrix p = let Mor (J f) = p
+                  (v, _) = f undefined
+               in fromRtoL v   
 
 {-
  -  Isomorphisms
