@@ -39,23 +39,24 @@ linearRegression ∷ ∀ d n hyp fam cov. ( KnownNat d, KnownNat n
                  ⇒ Point ((ℝp 1, ℝp 1), ℝp 1) -- ^ hyperparameters @((a,b),c)@
                  → Point (M n d, ℝ n)         -- ^ data 
                  → BayesSetup () (ℝ n) hyp fam
-linearRegression hyp dat = let bayesPrior = prior 
-                               bayesModel = pushOsi model 
-                               bayesObs   = pr2 . dat
-                               bayesFam   = pushOsi genericGaussian
-                            in BayesSetup{..}
-                             where
-                               x ∷ ∀ t. Domain t ⇒ Mor t (M n d)
-                               x = pr1 . dat . terminal
-                               model ∷ Density hyp (ℝ n)
-                               model = let f ∷ Mor hyp (ℝ n, ℝp n)
-                                           f = bimap (fromPoints $ \y → x ∙ y) (Mor expand)
-                                           μ = gaussianD @n @(ℝp n) 
-                                        in pull @Domain @Mor f μ 
-                               prior ∷ Density () hyp 
-                               prior = let μ ∷ Density () (ℝ d)
-                                           μ = pull (basePoint × (Mor expand . pr2 . hyp)) $ gaussianD @d @(ℝp d)
-                                           ν ∷ Density () (ℝp 1)
-                                           ν = pull (pr1 . hyp) $ reparam (inv stdToPrecision) gammaD
-                                        in μ ◎ ν   
-
+linearRegression hyper xy = let bayesPrior = prior 
+                                bayesModel = pushOsi model 
+                                bayesObs   = pr2 . xy
+                                bayesFam   = pushOsi genericGaussian
+                             in BayesSetup{..}
+                              where
+                                x ∷ ∀ t. Domain t ⇒ Mor t (M n d)
+                                x = pr1 . xy . terminal
+                                model ∷ Density hyp (ℝ n)
+                                model = let f ∷ Mor hyp (ℝ n, ℝp n)
+                                            f = bimap (fromPoints $ \y → x ∙ y) (Mor expand)
+                                            μ = gaussianD @n @(ℝp n) 
+                                         in pull @Domain @Mor f μ 
+                                prior ∷ Density () hyp 
+                                prior = let μ ∷ Density () (ℝ d)
+                                            μ = pull (basePoint × (Mor expand . pr2 . hyper)) $ gaussianD @d @(ℝp d)
+                                            ν ∷ Density () (ℝp 1)
+                                            ν = pull (pr1 . hyper) $ reparam (inv stdToPrecision) gammaD
+                                         in μ ◎ ν   
+ 
+ 
