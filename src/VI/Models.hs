@@ -100,10 +100,4 @@ linearRegressionExec a b c x y
                                         (m'',_) = LA.splitCols @d @d       @(d + 1) m'
                                      in m''
 
-lrtest = do
-            let x = LA.col $ LA.vector @5 [0..4]
-                y = LA.vector @5 [0.1,-1.6,-4.1,-5.8,-8.5]
-            (ω,σ) ← linearRegressionExec 1.0 1.0 4.0 x y
-            putStrLn $ "weights: " <> show ω
-            putStrLn $ "covariance: " <> show σ
 

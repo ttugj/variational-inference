@@ -17,8 +17,6 @@ module VI.Inference ( -- * SGD on divergence
                       -- * Inference models
                       -- ** Bayes
                     , BayesSetup(..), bayesLoss
-                      -- ** Debugging
-                    , demo
                     ) where
 
 import VI.Categories
@@ -71,7 +69,7 @@ data Plan = Plan { planThreshold ∷ Double    -- ^ loss threshold
                  }
 
 defaultPlan ∷ Plan
-defaultPlan = Plan 1.0 20000 1000
+defaultPlan = Plan 1.0 100000 1000
 
 -- | Optimise according to plan, terminating once 
 -- loss falls below threshold or max number of steps
@@ -183,22 +181,6 @@ adamSGD  params@AdamParams{..} loss state p
                                    !p'      = p - rate * μ1 
                                 in (state', p', g)
            in go <$> loss
-
-demo ∷ IO ()
-demo = optimiseIO cb defaultPlan (adamSGD defaultAdamParams) loss Nothing >>= uncurry cb 
-            where
-                    cb ∷ ∀ m x. (x ~ (ℝ 2, Σp 2), MonadIO m) ⇒ Point x → Double → m ()
-                    cb p g = liftIO . putStrLn $ L.unwords [ "loss", show g, "loc", show $ getPoint (pr1 . p) ] 
-                    loss  ∷ ∀ m. SampleM m ⇒ m (Mor (ℝ 2, Σp 2) (ℝ 1))
-                    loss  = (. osi) <$> divergenceSample variationalFamily posterior
-                    variationalFamily ∷ Couple Density Sampler (ℝ 2, Σp 2) (ℝ 2)
-                    variationalFamily = gaussian 
-                    posterior ∷ Density () (ℝ 2)
-                    posterior = let Couple μ _ = gaussian @1 @(ℝp 1)
-                                    λ = pull (real 1.0 × realp 1.0) μ
-                                    ν = mix' @Domain @Mor λ $ pull (id × realp 1.0) μ 
-                                 in pushIso ν   
-                                
 
 data BayesSetup lat obs hyp fam = BayesSetup { bayesPrior ∷ Density () hyp
                                              , bayesModel ∷ Density hyp (lat, obs)

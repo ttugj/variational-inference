@@ -10,6 +10,6 @@ let
 in
 pkgs.stdenv.mkDerivation {
   name = "vi-env";
-  buildInputs = [ ghc pkgs.llvm_9 hp.haskell-language-server ];
+  buildInputs = [ ghc hp.cabal-install pkgs.llvm_9 hp.haskell-language-server ];
   shellHook = "eval $(egrep ^export ${ghc}/bin/ghc)";
 }
