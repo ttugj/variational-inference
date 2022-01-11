@@ -62,9 +62,13 @@ module VI.Domains ( -- * Cartesian category of domains
                     -- * Individual morphisms
 -- |
 -- Many other natural morphisms, not covered by the above classes, are defined in what follows.
--- These include standard diffeomorphisms between @ℝp@, @ℝ@ and @I@ (logarithm, the logistic function, and their inverses),
--- as well as basic linear algebra.
-                  , log', exp', logit, logistic, simplexProjection
+-- These include:
+--
+--   * standard diffeomorphisms between @ℝp@, @ℝ@ and @I@ (logarithm, the logistic function, and their inverses),
+--   * special functions for use in probaiblity densities (gamma, beta)
+--   * basic linear algebra.
+                  , log', exp', logit, logistic, gamma
+                  , simplexProjection
                   , tr, sym, tril, chol, cholInverse, cholDet, prodP, mm, mmT
                   , toNil, decomposeChol, composeChol 
                   ) where
@@ -82,6 +86,8 @@ import Control.Applicative
 
 import qualified Numeric.LinearAlgebra.Static as LA
 import qualified Numeric.LinearAlgebra        as LA'
+import qualified Numeric.GSL.Special.Gamma    as GSL
+import qualified Numeric.GSL.Special.Psi      as GSL
 import qualified Data.Vector.Generic          as G
 
 import GHC.Float 
@@ -617,4 +623,19 @@ logit = Mor id
 -- | logistic 
 logistic ∷ KnownNat n ⇒ Mor (ℝ n) (I n)
 logistic = Mor id
+
+-- | gamma function
+gamma ∷ KnownNat n ⇒ Mor (ℝp n) (ℝp n)
+gamma = Mor . J $ \x → let ex = exp x
+                           y  = LA.dvmap GSL.lngamma ex
+                           d  = ex * LA.dvmap GSL.psi ex
+                        in (y, (d *))
+
+-- | beta function
+beta ∷ KnownNat n ⇒ Mor (I n, I n) (ℝp n)
+beta = fromPoints2 $ \x y → let x' = emb . x
+                                y' = emb . y
+                                p  = (gamma ▶ x') ◀ mul $ (gamma ▶ y')
+                                q  = gamma ▶ (x' ◀ add $ y')
+                             in p ◀ quo $ q  
 

@@ -5,7 +5,7 @@ let
             text-short = pkgs.haskell.lib.dontCheck hsuper.text-short;
        });
   ghc = hp.ghcWithPackages (ps: with ps; [
-          hmatrix ghc-typelits-natnormalise ghc-typelits-knownnat vector ghc-typelits-extra MonadRandom mwc-random 
+          hmatrix hmatrix-special ghc-typelits-natnormalise ghc-typelits-knownnat vector ghc-typelits-extra MonadRandom mwc-random 
         ]);
 in
 pkgs.stdenv.mkDerivation {
