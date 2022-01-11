@@ -174,10 +174,10 @@ getPoint p = let Mor (J f) = toConcrete . p
                  (y, _)    = f undefined
               in y
 
-real ∷ ∀ t.  Domain t ⇒ Double → Mor t (ℝ 1) 
+real ∷ ∀ t n.  (Domain t, KnownNat n) ⇒ Double → Mor t (ℝ n) 
 real x = Mor $ point $ LA.konst x
 
-realp ∷ ∀ t. Domain t ⇒ Double → Mor t (ℝp 1) 
+realp ∷ ∀ t n. (Domain t, KnownNat n) ⇒ Double → Mor t (ℝp n) 
 realp x = Mor $ point $ LA.konst $ log x
 
 getMatrix ∷ ∀ n m. (KnownNat n, KnownNat m) ⇒ Point (M n m) → LA.L n m

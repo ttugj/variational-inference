@@ -330,7 +330,14 @@ genericGaussian = case gaussian @n of
 
 -- | Gamma distribution
 gammaD ∷ ∀ n. KnownNat n ⇒ Density (ℝp n, ℝp n) (ℝp n)
-gammaD = Density $ undefined
+gammaD = Density $ fromPoints2 $ \ab x → let a = pr1 . ab
+                                             b = pr2 . ab
+                                             a'= emb . a ◀ sub $ real 1 
+                                             expTerm = exp' . neg . emb . (b ◀ mul $ x)   -- exp(-bx)
+                                             powTerm = exp' . (a' ◀ mul $ log' . x)       -- x^{a-1}
+                                             btoa    = exp' . (emb . a ◀ mul $ log' . b)  -- b^a
+                                             coef    = btoa ◀ quo $ gamma . a             -- b^a / Γ(a)
+                                          in prodP . (coef ◀ mul $ powTerm ◀ mul $ expTerm)
 
 divergenceSample ∷ SampleM m ⇒ Couple Density Sampler t x → Density s x → m (Mor (t,s) (ℝ 1))
 divergenceSample (Couple (Density q) (Sampler s)) (Density p) = go <$> s where

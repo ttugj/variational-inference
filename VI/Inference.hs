@@ -71,7 +71,7 @@ data Plan = Plan { planThreshold ∷ Double    -- ^ loss threshold
                  }
 
 defaultPlan ∷ Plan
-defaultPlan = Plan 1.0e-4 100000 1000
+defaultPlan = Plan 1.0 20000 1000
 
 -- | Optimise according to plan, terminating once 
 -- loss falls below threshold or max number of steps
