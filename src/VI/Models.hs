@@ -1,4 +1,4 @@
-{-# LANGUAGE UnicodeSyntax, PolyKinds, DataKinds, TypeFamilies, TypeOperators, GADTs, ConstraintKinds, TypeApplications, AllowAmbiguousTypes, NoImplicitPrelude, UndecidableInstances, NoStarIsType, MultiParamTypeClasses, FlexibleInstances, FlexibleContexts, LiberalTypeSynonyms, ScopedTypeVariables, InstanceSigs, DefaultSignatures, RankNTypes, TupleSections, BangPatterns, RecordWildCards, PartialTypeSignatures #-}
+{-# LANGUAGE UnicodeSyntax, PolyKinds, DataKinds, TypeFamilies, TypeOperators, GADTs, ConstraintKinds, TypeApplications, AllowAmbiguousTypes, NoImplicitPrelude, UndecidableInstances, NoStarIsType, MultiParamTypeClasses, FlexibleInstances, FlexibleContexts, LiberalTypeSynonyms, ScopedTypeVariables, InstanceSigs, DefaultSignatures, RankNTypes, TupleSections, BangPatterns, RecordWildCards, PartialTypeSignatures, ViewPatterns #-}
 
 {-# OPTIONS_GHC -fplugin GHC.TypeLits.Extra.Solver #-}
 {-# OPTIONS_GHC -fplugin GHC.TypeLits.KnownNat.Solver #-}
@@ -73,13 +73,14 @@ linearRegressionModel hyper xy
 -- | Fit a 'linearRegressionModel' using 'adamSGD' with default settings,
 -- and return mean and covariance of regression weights.
 linearRegressionExec ∷ ∀ d n. (KnownNat d, KnownNat n)
-                     ⇒ Double
+                     ⇒ Maybe Plan
+                     → Double
                      → Double
                      → Double
                      → LA.L n d
                      → LA.R n
                      → IO (LA.R d, LA.Sym d)
-linearRegressionExec a b c x y
+linearRegressionExec (fromMaybe defaultPlan → plan) a b c x y
                      = do
                          let model = linearRegressionModel @d @n ((realp a × realp b) × realp c) ((Mor . point . fromLtoR $ x) × fromConcrete y)
                              loss  ∷ Loss' _
@@ -87,7 +88,7 @@ linearRegressionExec a b c x y
                              opt   ∷ Optimiser' _ _
                              opt   = adamSGD defaultAdamParams 
                              cb _ h = liftIO $ putStrLn $ "loss: " <> show h
-                         (p,_) ← optimiseIO cb defaultPlan opt loss Nothing 
+                         (p,_) ← optimiseIO cb plan opt loss Nothing 
                          let 
                              wts  = pr1 . pr1 . p
                              cov  = pr2 . p
