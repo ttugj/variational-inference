@@ -33,7 +33,7 @@ Variational inference becomes difficult for larger, hierarchical models: given s
 of priors, composing distributions with constrained parameters (as in the usual parameterisations
 of Beta or Gamma), both constructing a variational family that can reasonably well approximate
 the target distribution, as well as minimising loss over the variational parameter space, are non-trivial 
-to perform and debug. The approach of ADVI is, in a simplified form, to:
+to perform and debug. The ADVI recipe is, in a simplified form, to:
 
 1. reparameterise to remove constraints (e.g. apply _log_ to positive parameters, _logit_ to parameters in [0,1], etc.);
 2. use a single multivariate normal variational family over the entire unconstrained parameter space (full covariance, or mean field);
@@ -42,6 +42,13 @@ variational distributions by mean and a Cholesky factor of covariance).
 
 # Design
 
+The approach here is to model the problem categorically, and
+then to reflect the structure, however imperfectly, in the type system.
+I will briefly sketch the design, following its development in the package's modules.
 
-
+## Categorical foundation
+## Jets
+## Domains
+## Disintegrations
+## Inference 
 
