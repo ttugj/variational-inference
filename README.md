@@ -19,7 +19,7 @@ model conditioned on observed data, as in Bayesian inference, but other
 scenarios are possible as well. One approach to the problem is to sample _directly_
 from μ using MCMC methods (expected values are then estimated by averaging over
 samples). Another is to _approximate_ μ by a more easily controlled probability distribution,
-described by easily interpretable parameters and straightforward to sample from.
+described by immediately interpretable parameters and straightforward to sample from.
 
 In the latter case, one fixes a _variational family_ consisting of distributions ν(θ) parameterised
 by some finite-dimensional parameter domain Θ. Mapping θ ∈ Θ to the Kullback-Leibler divergence
@@ -42,13 +42,15 @@ variational distributions by mean and a Cholesky factor of covariance).
 
 # Design
 
-The approach here is to model the problem categorically, and
-then to reflect the structure, however imperfectly, in the type system.
-I will briefly sketch the design, following its development in the package's modules.
+## Mathematical model
 
-## Categorical foundation
-## Jets
-## Domains
-## Disintegrations
-## Inference 
+
+
+## Implementation 
+
+### `VI.Categories`
+### `VI.Jets`
+### `VI.Domains`
+### `VI.Quasiarrows`
+### `VI.Inference`
 

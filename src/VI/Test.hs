@@ -30,7 +30,7 @@ module VI.Test ( -- * General classes for tests
                , mmAssociativeT, mmTT
                , lerpSimplexIntervalT
                , cholInverseT
-                 -- ** Disintegrations
+                 -- ** Quasiarrows
                , standardGaussianT 
                  -- * Debugging
                , valueAtPoint, gradAtPoint, evalAtPoint, getMatrix', randomPoint
@@ -39,7 +39,7 @@ module VI.Test ( -- * General classes for tests
 import VI.Categories
 import VI.Jets
 import VI.Domains
-import VI.Disintegrations
+import VI.Quasiarrows
 
 import Control.Applicative
 import Control.Monad

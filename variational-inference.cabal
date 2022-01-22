@@ -11,7 +11,7 @@ category:           Math
 library
     exposed-modules:
         VI.Util
-        VI.Disintegrations
+        VI.Quasiarrows
         VI.Models
         VI.Inference
         VI.Categories

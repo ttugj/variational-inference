@@ -5,10 +5,10 @@
 {-# OPTIONS_GHC -fplugin GHC.TypeLits.Normalise #-}
 {-# OPTIONS_GHC -fconstraint-solver-iterations=10 #-}
 
-module VI.Disintegrations ( -- * Disintegrations
+module VI.Quasiarrows ( -- * Quasiarrows
 
 -- |
--- A disintegration on a Cartesian category \(C\) is
+-- A quasiarrow on a Cartesian category \(C\) is
 -- a map \( p : Ob(C) \times Ob(C)\to Set \), with \(p(x, y)\) interpreted 
 -- as the set of families of probability distributions over @y@
 -- parameterised by @x@, together with 
@@ -23,23 +23,23 @@ module VI.Disintegrations ( -- * Disintegrations
 -- \[ p (x, y) \times p (x \times y, z) \times p (x \times y \times z, w) \to  p( x, y \times z \times w ) \] 
 -- coincide.
 --
--- Note that we do not model marginals (these would turn a disintegration
+-- Note that we do not model marginals (these would turn a quasiarrow
 -- into a profunctor) and Dirac delta distributions (these would lift
--- morphisms into disintegrations). Mixture maps provide just enough structure
+-- morphisms into quasiarrows). Mixture maps provide just enough structure
 -- to construct joint distributions over probabilistic programs.
-                            Disintegration(..), mix', mix''
+                            Quasiarrow(..), mix', mix''
 -- |
--- One may view disintegrations over a fixed Cartesian category
+-- One may view quasiarrows over a fixed Cartesian category
 -- as objects of a symmetric monoidal category. While we won't 
--- model disintegration morphisms, the monoidal structure is 
+-- model quasiarrow morphisms, the monoidal structure is 
 -- expressed by 'Trivial' and 'Couple': 
                           , Trivial(..), Couple(..)
 
-                            -- * Disintegrations over domains
+                            -- * Quasiarrows over domains
 
-                            -- ** Main disintegrations
+                            -- ** Main quasiarrows
 -- |
--- We consider two fundamental disintegrations over domains:
+-- We consider two fundamental quasiarrows over domains:
 --
 --  * 'Density', expressing probability distributions in terms of densities  
 --    with respect to the underlying volume measure induced by the
@@ -69,7 +69,7 @@ module VI.Disintegrations ( -- * Disintegrations
                           , SampleM(..), executeSampleIO, Sampler(..), push 
                             -- ** Reparameterisation of disintegratoins
 -- |
--- 'Reparameterisable' disintegrations admit pushforwards along domain diffeomorphisms,
+-- 'Reparameterisable' quasiarrows admit pushforwards along domain diffeomorphisms,
 -- represented as a pair of mutually inverse morphisms together with a Jacobian. More
 -- precisely, the 'Reparam' type encodes a family of diffeomorphisms between a pair of
 -- domains, parameterised by a third domain. Upon fixing the latter, 'Reparam' becomes
@@ -150,7 +150,7 @@ import GHC.Types
 import GHC.Err (undefined)
 
 -- | A minimal structure for building joint likelihoods
-class Cart ob c ⇒ Disintegration ob c p where
+class Cart ob c ⇒ Quasiarrow ob c p where
     -- | Contravariant functoriality in first argument
     pull   ∷ c x y → p y z → p x z
     -- | Mixture (a weak composition)
@@ -160,27 +160,27 @@ class Cart ob c ⇒ Disintegration ob c p where
 
 data Trivial x y = Trivial
 
-instance Cart ob c ⇒ Disintegration ob c Trivial where
+instance Cart ob c ⇒ Quasiarrow ob c Trivial where
     pull _ Trivial = Trivial
     mix Trivial Trivial = Trivial
     pushB _ Trivial = Trivial
 
 data Couple p p' x y = Couple (p x y) (p' x y)
 
-instance (Disintegration ob c p, Disintegration ob c p') ⇒ Disintegration ob c (Couple p p') where
+instance (Quasiarrow ob c p, Quasiarrow ob c p') ⇒ Quasiarrow ob c (Couple p p') where
     pull f (Couple μ μ') = Couple (pull f μ) (pull f μ')
     mix (Couple μ μ') (Couple ν ν') = Couple (mix @ob @c μ ν) (mix @ob @c μ' ν')
     pushB φ (Couple μ μ') = Couple (pushB @ob @c φ μ) (pushB  @ob @c φ μ') 
 
-mix' ∷ ∀ ob c p x y z. (Disintegration ob c p, ob x, ob y, ob z) ⇒ p x y → p y z → p x (y, z)
+mix' ∷ ∀ ob c p x y z. (Quasiarrow ob c p, ob x, ob y, ob z) ⇒ p x y → p y z → p x (y, z)
 mix' μ ν = mix @ob @c μ (pull @ob @c pr2 ν)
 
 
-mix'' ∷ ∀ ob c p x y z. (Disintegration ob c p, ob x, ob y, ob z) ⇒ p x y → p x z → p x (y, z)
+mix'' ∷ ∀ ob c p x y z. (Quasiarrow ob c p, ob x, ob y, ob z) ⇒ p x y → p x z → p x (y, z)
 mix'' μ ν  = mix @ob @c μ (pull @ob @c pr1 ν)
 
 -- | Specialisation of 'mix''' 
-(◎) ∷ ∀ p x y z. (Disintegration Domain Mor p, Domain x, Domain y, Domain z) ⇒ p x y → p x z → p x (y, z)
+(◎) ∷ ∀ p x y z. (Quasiarrow Domain Mor p, Domain x, Domain y, Domain z) ⇒ p x y → p x z → p x (y, z)
 (◎) = mix'' @Domain @Mor @p @x @y @z 
 
 -- | A family of probability densities (with respect to Lebesgue measure induced by the canonical coordinate)
@@ -205,12 +205,12 @@ executeSampleIO α = MWC.createSystemRandom >>= runReaderT (runSampleT (α ∷ S
 data Sampler x y where
     Sampler ∷ (Domain x, Domain y) ⇒ (∀ m. SampleM m ⇒ m (Mor x y)) → Sampler x y 
 
-instance Disintegration Domain Mor Density where
+instance Quasiarrow Domain Mor Density where
     pull f (Density p) = witness f $ Density $ p . bimap f id
     mix (Density p) (Density q) = Density $ fromPoints3 $ \x y z → (p ▶ x × y) ◀ mul $ q ▶ x × y × z
     pushB φ (Density p) = witness φ $ Density $ p . bimap id (braid $ inv φ)
 
-instance Disintegration Domain Mor Sampler where
+instance Quasiarrow Domain Mor Sampler where
     pull f (Sampler s) = witness f $ Sampler $ (. f) <$> s
     mix (Sampler s) (Sampler t) = Sampler $ do
                                     φ ← s
@@ -257,7 +257,7 @@ instance Domain x ⇒ ((), x) ≌ x
 instance Domain x ⇒ (x, ()) ≌ x
 instance (Domain x, Domain y, Domain z) ⇒ (x, (y, z)) ≌ ((x, y), z)
 
-class Disintegration Domain Mor p ⇒ Reparameterisable p where
+class Quasiarrow Domain Mor p ⇒ Reparameterisable p where
     reparam ∷ Reparam x y z → p x y → p x z
 
 instance Reparameterisable Density where

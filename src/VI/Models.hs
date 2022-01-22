@@ -15,7 +15,7 @@ module VI.Models ( -- * Models
 import VI.Categories
 import VI.Jets
 import VI.Domains
-import VI.Disintegrations
+import VI.Quasiarrows
 import VI.Inference
 import VI.Util              (fromLtoR)
 

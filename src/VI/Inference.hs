@@ -22,7 +22,7 @@ module VI.Inference ( -- * SGD on divergence
 import VI.Categories
 import VI.Jets
 import VI.Domains
-import VI.Disintegrations
+import VI.Quasiarrows
 
 import GHC.Types
 import GHC.Classes
