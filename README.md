@@ -74,7 +74,7 @@ a set-valued functor on CartIso(__C__);
 
 satisfying natural compatibility conditions: pullbacks commute with pushforwards, mixtures are compatible with both pullbacks
 and pushforwards, and furthermore associative in the sense that the two composites
-> mix ∘ (mix × id), mix ∘ (id × mix): _p_(_X_, _Y_) × _p_(_X_ × _Y_, _Z_) × _p_(_X_ × _Y_ × _Z_, _W_) → _p_(_X_, _Y_ × _Z_ × _W_)
+mix ∘ (mix × id), mix ∘ (id × mix): _p_(_X_, _Y_) × _p_(_X_ × _Y_, _Z_) × _p_(_X_ × _Y_ × _Z_, _W_) → _p_(_X_, _Y_ × _Z_ × _W_)
 coincide (where we implicitly use functoriality of _p_(_X_, -) with respect to CartIso(__C__) to disambiguate iterated products).
 
 ## Implementation 
