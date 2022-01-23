@@ -50,7 +50,7 @@ This is too much to hope for in our context.
 
 First, since we need automatic differentiation, we'll work over a
 much more restricted category of _domains_ (in a first approximation equivalent to the category of Cartesian
-spaces and smooth maps). We thus lose representability, weakening _P_ to a profunctor _p_:__C__° × __C__ → __Set__,
+spaces and smooth maps). We thus lose representability, weakening _P_ to a profunctor _p_ : __C__ ° × __C__ → __Set__,
 with _p_(_X_,_Y_) interpreted as the set of families of probability distributions over _Y_ parameterised by _X_.
 In fact, our category will be Cartesian, and the profunctor _p_ would then be an _arrow_ (in the usual Haskell sense),
 a shadow of _P_ being a monad.
