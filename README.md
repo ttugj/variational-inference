@@ -63,9 +63,9 @@ _p_(_X_,_Y_) × _p_(_X_ × _Y_, _Z_) → _p_(_X_, _Y_ × _Z_). The latter allow 
 variables instead of a marginal distribution over some final subset thereof.
 
 These properties give rise to what we'll call a _quasiarrow_. First, let __C__ be a Cartesian category,
-and CartIso(__C__) → __C__ be the groupoid of isomorphisms in the free Cartesian category on Ob(__C__),
+and let CartIso(__C__) → __C__ be the groupoid of isomorphisms in the free Cartesian category on Ob(__C__),
 together with a Cartesian embedding, identity on Ob(__C__) ⊂ Ob(CartIso(__C__)).
-Then a _quasiarrow_ on __C__ is a map _p_ : __C__° × __C__ → __Set__ together with:
+Then a _quasiarrow_ on __C__ is a map _p_ : __C__ ° × __C__ → __Set__ together with:
 
 1. pullback maps __C__(_X'_,_X_) × _p_(_X_,_Y_) → _p_(_X'_,_Y_) extending _p_(-,_Y_) to a presheaf on __C__,
 2. mixture maps _p_(_X_,_Y_) × _p_(_X_ × _Y_, _Z_) → _p_(_X_, _Y_ × _Z_),
@@ -74,8 +74,8 @@ a set-valued functor on CartIso(__C__);
 
 satisfying natural compatibility conditions: pullbacks commute with pushforwards, mixtures are compatible with both pullbacks
 and pushforwards, and furthermore associative in the sense that the two composites
-mix ∘ (mix × id), mix ∘ (id × mix): _p_(_X_,_Y_) × _p_(_X_×_Y_,_Z_) × _p_(_X_×_Y_×_Z_,_W_) → _p_(_X_,_Y_×_Z_×_W_)
-coincide (where we implicitly use functoriality of _p_(_X_,-) with respect to CartIso(__C__) to disambiguate iterated products).
+> mix ∘ (mix × id), mix ∘ (id × mix): _p_(_X_, _Y_) × _p_(_X_ × _Y_, _Z_) × _p_(_X_ × _Y_ × _Z_, _W_) → _p_(_X_, _Y_ × _Z_ × _W_)
+coincide (where we implicitly use functoriality of _p_(_X_, -) with respect to CartIso(__C__) to disambiguate iterated products).
 
 ## Implementation 
 
