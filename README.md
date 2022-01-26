@@ -65,7 +65,7 @@ variables instead of a marginal distribution over some final subset thereof.
 These properties give rise to what we'll call a _quasiarrow_.[^1]
 
 [^1]: Let __C__ be a Cartesian category,
-and let Braid __C__ → __C__ be the groupoid of isomorphisms in the free Cartesian category on Ob __C__,
+and let Braid __C__ → __C__ be the core groupoid of the free Cartesian category on Ob __C__,
 together with the Cartesian embedding acting as identity on Ob __C__ ⊂ Ob Braid __C__.
 
     A _quasiarrow_ on __C__ is a map _p_ : __C__ ° × __C__ → __Set__ together with:
