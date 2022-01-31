@@ -1,4 +1,4 @@
-{-# LANGUAGE UnicodeSyntax, PolyKinds, DataKinds, TypeFamilies, TypeOperators, GADTs, ConstraintKinds, TypeApplications, AllowAmbiguousTypes, NoImplicitPrelude, UndecidableInstances, NoStarIsType, MultiParamTypeClasses, FlexibleInstances, FlexibleContexts, LiberalTypeSynonyms, ScopedTypeVariables, InstanceSigs, DefaultSignatures, DerivingStrategies, GeneralizedNewtypeDeriving, RankNTypes #-}
+{-# LANGUAGE UnicodeSyntax, PolyKinds, DataKinds, TypeFamilies, TypeOperators, GADTs, ConstraintKinds, TypeApplications, AllowAmbiguousTypes, NoImplicitPrelude, UndecidableInstances, NoStarIsType, MultiParamTypeClasses, FlexibleInstances, FlexibleContexts, LiberalTypeSynonyms, ScopedTypeVariables, InstanceSigs, DefaultSignatures, DerivingStrategies, GeneralizedNewtypeDeriving, RankNTypes, TupleSections #-}
 
 {-# OPTIONS_GHC -fplugin GHC.TypeLits.Extra.Solver #-}
 {-# OPTIONS_GHC -fplugin GHC.TypeLits.KnownNat.Solver #-}
@@ -12,16 +12,13 @@ module VI.Test ( -- * General classes for tests
         -- where a typical property is expressed as an equality
         -- between two morphisms of domains.
         --
-        -- The class 'Test' is instantiated by testable types, in particular @'Mor' x y@.
-        --
         -- A typical test is of the form
         -- @someT ∷ Pair x y@, and can be run as
         --
         -- @ withTolerance ε (doTest' someT) ∷ IO Bool @
         --
         -- where @ε ∷ Double@ is a reasonably minuscule positive real number.
-                 Test(..), TestM(..), doTest'
-               , withTolerance
+                 TestM(..), Testable(..), Test(..), doTests, withTolerance, allTests
                  -- * Assorted tests
                  -- ** Domains
                , Pair
@@ -49,7 +46,7 @@ import Control.Monad.Reader
 import Data.Bool
 import Data.Maybe
 import Data.Kind
-import Prelude (($), uncurry, undefined)
+import Prelude (($), uncurry, undefined, String)
 
 import GHC.TypeNats
 import GHC.Types
@@ -64,35 +61,60 @@ import qualified System.Random.MWC            as MWC
 import           System.Random.Stateful
 
 import qualified Data.Vector.Generic          as G
+import qualified Data.List                    as L
+
+allTests ∷ [Test String]
+allTests = [ Test "simplexRetractionT @4" $ simplexRetractionT @4
+           , Test "simplexIntervalT" simplexIntervalT
+           , Test "trInvolutiveT @3 @4" $ trInvolutiveT @3 @4
+           , Test "symRetractionT @4" $ symRetractionT @4
+           , Test "mmAssociativeT @2 @3 @4 @5" $ mmAssociativeT @2 @3 @4 @5
+           , Test "mmT @3 @4" $ mmTT @3 @4
+           , Test "lerpSimplexIntervalT" lerpSimplexIntervalT
+           , Test "cholInverseT @4" $ cholInverseT @4
+           , Test "standardGaussianT" standardGaussianT
+           ]
 
 class Monad m ⇒ TestM m where
     sampleR ∷ KnownNat n ⇒ m (LA.R n)
     judgeR ∷ KnownNat n ⇒ LA.R n → m Bool
     judgeL ∷ (KnownNat n, KnownNat k) ⇒ LA.L n k → m Bool
 
-class Test a where
+-- | A type @a@ is testable if we can test pairs of its elements for (approximate) equality
+class Testable a where
     doTest ∷ TestM m ⇒ a → a → m Bool 
 
-instance (Test a, Test b) ⇒ Test (a, b) where
+instance (Testable a, Testable b) ⇒ Testable (a, b) where
     doTest (a,b) (a',b') = (&&) <$> doTest a a' <*> doTest b b'
 
-instance KnownNat n ⇒ Test (LA.R n) where
+instance KnownNat n ⇒ Testable (LA.R n) where
     doTest u v = judgeR (u - v) 
 
-instance (KnownNat n, KnownNat k) ⇒ Test (LA.L n k) where
+instance (KnownNat n, KnownNat k) ⇒ Testable (LA.L n k) where
     doTest a b = judgeL (a - b)
 
-instance (KnownNat n, Test a) ⇒ Test (LA.R n → a) where
+instance (KnownNat n, Testable a) ⇒ Testable (LA.R n → a) where
     doTest f g = sampleR >>= doTest <$> f <*> g 
 
-instance (KnownNat n, KnownNat k) ⇒ Test (J n k) where
+instance (KnownNat n, KnownNat k) ⇒ Testable (J n k) where
     doTest (J φ) (J ψ) = doTest φ ψ 
 
-instance (Domain x, Domain y) ⇒ Test (Mor x y) where
+instance (Domain x, Domain y) ⇒ Testable (Mor x y) where
     doTest (Mor φ) (Mor ψ) = doTest φ ψ
 
-doTest' ∷ (TestM m, Test a) ⇒ (a, a) → m Bool
+-- | A wrapper for a labelled testable pair
+data Test label where
+    Test    ∷ Testable a ⇒ label → (a, a) → Test label
+
+-- | @uncurry doTest@
+doTest' ∷ (TestM m, Testable a) ⇒ (a, a) → m Bool
 doTest' = uncurry doTest
+
+-- | Run a list of 'Test's, returning passing and failing ones 
+doTests ∷ TestM m ⇒ [Test label] → m ([label], [label])
+doTests tests = part <$> mapM go tests where
+                    go (Test label (a, a')) = (,label) <$> doTest a a'
+                    part = bimap (fmap pr2) (fmap pr2) . L.partition pr1
 
 data TestContext m = TestContext { gen ∷ MWC.Gen (PrimState m)
                                  , tol ∷ Double
@@ -138,7 +160,7 @@ lerpSimplexIntervalT = (pr1 . osi @(ℝp 1, ℝp 1) . emb @(Δ 1) @(ℝp 2) . le
 cholInverseT ∷ ∀ n. (KnownNat n, 1 <= n) ⇒ Pair (Σp n) (Lo n)
 cholInverseT = (mul . (cholInverse × chol), chol . basePoint . terminal)
 
-standardGaussianT ∷ ∀ n. (KnownNat n, 1 <= n) ⇒ Pair (ℝ 1) (ℝp 1)
+standardGaussianT ∷ Pair (ℝ 1) (ℝp 1)
 standardGaussianT = let Couple (Density p) _ = pull (real 0 × realp 1) gaussian
                         Couple (Density q) _ = standardGaussian
                         f                    = terminal × id
